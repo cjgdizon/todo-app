@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@todo/core"],
+  transpilePackages: ["@todo/core", "@todo/data", "@todo/ui-tokens"],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

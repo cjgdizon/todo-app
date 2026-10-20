@@ -1,34 +1,41 @@
 @import "tailwindcss";
-
-/* Base tokens from DESIGN.md. The full set moves to packages/ui-tokens in M2. */
-:root {
-  --bg: #fafaf8;
-  --surface: #ffffff;
-  --border: #e6e5e0;
-  --text: #1f2421;
-  --text-muted: #5f655f;
-  --accent: #3f7d6b;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #121413;
-    --surface: #1a1d1b;
-    --border: #2a2e2b;
-    --text: #e8eae6;
-    --text-muted: #a1a8a1;
-    --accent: #6fb5a0;
-  }
-}
+/* Design tokens (colour, radius, motion) generated from packages/ui-tokens. */
+@import "@todo/ui-tokens/tokens.css";
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
   --color-border: var(--border);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-on-accent: var(--on-accent);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-focus-ring: var(--focus-ring);
+  --color-priority-1: var(--priority-1);
+  --color-priority-2: var(--priority-2);
+  --color-priority-3: var(--priority-3);
+  --shadow-pop: var(--shadow-popover);
   --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+html {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+  }
 }
 
 body {
@@ -39,11 +46,29 @@ body {
   line-height: 24px;
 }
 
+/* Visible keyboard focus on every interactive element (DESIGN.md: 2px, 2px offset). */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Completion: the row fades out after the checkbox fills (the one "delight" animation). */
+@keyframes row-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+.row-leaving {
+  animation: row-leave var(--duration-base) var(--ease-leave) 600ms forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
 }
