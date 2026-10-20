@@ -9,6 +9,9 @@ Production-grade to-do app: Next.js PWA + Expo mobile, Supabase backend (Postgre
 - `packages/ui-tokens` design tokens shared by web and mobile
 - `supabase/` migrations, RLS, seed, Edge Functions
 
+## Design
+- Read `DESIGN.md` (calm minimal direction, tokens, motion, a11y) before writing any UI.
+
 ## Commands
 - `pnpm install`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`
 
