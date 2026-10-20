@@ -16,6 +16,7 @@ function assertOrdered(before: string | null, after: string | null): void {
 
 const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 const JITTER_LENGTH = 4;
+const JITTER_ATTEMPTS = 8;
 
 /** A few random base-62 digits. A key may not end in "0", so the last digit is never "0". */
 function jitter(random: () => number): string {
@@ -31,10 +32,12 @@ function jitter(random: () => number): string {
  *
  * Keys from the library are deterministic, so two offline clients inserting
  * between the same neighbours would get the same key. A random suffix makes that
- * collision very unlikely. The suffixed key is used only if it still sorts
- * strictly between the neighbours. Always list with `order by position, id`, so a
- * remaining tie is still stable. If a list ever has equal neighbours, rebalance it
- * with `positionsBetween(null, null, n)`.
+ * collision very unlikely. A suffixed key is used only if it still sorts strictly
+ * between the neighbours; a suffix can overshoot the upper neighbour (about half
+ * the time when the plain key is a prefix of it), so a few suffixes are tried
+ * before falling back to the plain key. Always list with `order by position, id`,
+ * so a remaining tie is still stable. If a list ever has equal neighbours,
+ * rebalance it with `positionsBetween(null, null, n)`.
  */
 export function positionBetween(
   before: string | null,
@@ -43,10 +46,13 @@ export function positionBetween(
 ): string {
   assertOrdered(before, after);
   const key = generateKeyBetween(before, after);
-  const candidate = key + jitter(random);
-  const fitsAfterLower = before === null || candidate > before;
-  const fitsBeforeUpper = after === null || candidate < after;
-  return fitsAfterLower && fitsBeforeUpper ? candidate : key;
+  for (let attempt = 0; attempt < JITTER_ATTEMPTS; attempt++) {
+    const candidate = key + jitter(random);
+    if ((before === null || candidate > before) && (after === null || candidate < after)) {
+      return candidate;
+    }
+  }
+  return key;
 }
 
 /** `count` increasing keys strictly between `before` and `after`. */

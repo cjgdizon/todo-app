@@ -17,12 +17,13 @@ import { zoned } from "./zoned.ts";
  */
 
 export class FilterParseError extends Error {
-  constructor(
-    message: string,
-    readonly position: number,
-  ) {
+  readonly position: number;
+
+  // No parameter property: plain Node (and Deno) type stripping only erases types.
+  constructor(message: string, position: number) {
     super(message);
     this.name = "FilterParseError";
+    this.position = position;
   }
 }
 

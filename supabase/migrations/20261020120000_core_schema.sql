@@ -40,15 +40,49 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Time zone columns must hold an IANA name such as "Asia/Manila", which both
+-- Postgres and JavaScript's Intl understand. Postgres also accepts POSIX
+-- abbreviations ("EST", "PST8PDT") that JavaScript does not, and those would make
+-- the recurrence code throw, so they are rejected. The column name is the trigger
+-- argument.
+-- ---------------------------------------------------------------------------
+create function public.check_time_zone()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  col text := tg_argv[0];
+  tz text := to_jsonb(new) ->> col;
+begin
+  if tz is null then
+    return new;
+  end if;
+  if tz !~ '^[A-Za-z0-9_+-]+/[A-Za-z0-9_+/-]+$' and tz not in ('UTC', 'GMT') then
+    raise exception '% must be an IANA time zone name such as Asia/Manila', col
+      using errcode = '23514';
+  end if;
+  begin
+    perform now() at time zone tz;
+  exception when invalid_parameter_value then
+    raise exception 'time zone "%" is not recognized', tz using errcode = '23514';
+  end;
+  return new;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Identity
 -- ---------------------------------------------------------------------------
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   display_name text not null default '' check (char_length(display_name) <= 100),
-  avatar_url text,
-  timezone text not null default 'UTC',
+  avatar_url text check (avatar_url is null or char_length(avatar_url) <= 2048),
+  timezone text not null default 'UTC' check (char_length(timezone) <= 64),
   created_at timestamptz not null default now()
 );
+create trigger profiles_check_tz before insert or update of timezone on public.profiles
+  for each row execute function public.check_time_zone('timezone');
 
 create table public.workspaces (
   id uuid primary key default gen_random_uuid(),
@@ -82,8 +116,8 @@ create table public.projects (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   name text not null check (char_length(btrim(name)) between 1 and 100),
-  color text,
-  position text not null collate "C",
+  color text check (color is null or char_length(color) <= 32),
+  position text not null collate "C" check (char_length(position) <= 128),
   archived_at timestamptz,
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
@@ -103,7 +137,7 @@ create table public.sections (
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   project_id uuid not null,
   name text not null check (char_length(btrim(name)) between 1 and 100),
-  position text not null collate "C",
+  position text not null collate "C" check (char_length(position) <= 128),
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -124,7 +158,7 @@ create table public.labels (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   name text not null check (char_length(btrim(name)) between 1 and 50),
-  color text,
+  color text check (color is null or char_length(color) <= 32),
   deleted_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -150,17 +184,17 @@ create table public.tasks (
   parent_id uuid,                  -- null = top-level task
   assignee_id uuid,
   title text not null check (char_length(btrim(title)) between 1 and 500),
-  notes text,
+  notes text check (notes is null or char_length(notes) <= 50000),
   priority smallint not null default 4 check (priority between 1 and 4),
   due_at timestamptz,
   due_all_day boolean not null default false,
   -- IANA zone the recurrence is evaluated in, so a shared task recurs the same
   -- way no matter who completes it.
   due_tz text check (due_tz is null or due_tz ~ '^[A-Za-z0-9_+/-]{1,64}$'),
-  rrule text,                      -- RFC 5545 RRULE, evaluated in packages/core
+  rrule text check (rrule is null or char_length(rrule) <= 500),   -- RFC 5545 RRULE, see packages/core
   recur_after_completion boolean not null default false,
   estimate_min integer check (estimate_min is null or estimate_min > 0),
-  position text not null collate "C",   -- fractional index
+  position text not null collate "C" check (char_length(position) <= 128),   -- fractional index
   completed_at timestamptz,
   deleted_at timestamptz,          -- soft delete (trash)
   -- Authorship survives account deletion as NULL instead of deleting shared work.
@@ -198,8 +232,13 @@ create index tasks_assignee_idx on public.tasks (workspace_id, assignee_id);
 create index tasks_created_by_idx on public.tasks (created_by);
 create index tasks_sync_idx on public.tasks (workspace_id, updated_at);
 create index tasks_search_idx on public.tasks using gin (search);
+-- Supports the foreign key to projects (project delete/purge and move_project cascades).
+-- The partial indexes above cannot serve those lookups.
+create index tasks_project_fk_idx on public.tasks (project_id, workspace_id);
 create trigger tasks_sync before insert or update on public.tasks
   for each row execute function public.sync_columns();
+create trigger tasks_check_tz before insert or update of due_tz on public.tasks
+  for each row execute function public.check_time_zone('due_tz');
 
 -- Subtasks: same project as the parent, no cycles, at most 5 levels. A deferrable
 -- constraint trigger (initially immediate) runs at the end of the statement, so
@@ -336,9 +375,16 @@ create table public.attachments (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces (id) on delete cascade,
   task_id uuid not null,
-  storage_path text not null,
+  -- Files live under the attachment's own task folder ("<task_id>/..."). Storage
+  -- policies can then trust the row, and a row can never point at another task's
+  -- (or another tenant's) files. Task ids never change, so a project move keeps it valid.
+  storage_path text not null check (
+    char_length(storage_path) <= 1024
+    and storage_path like task_id::text || '/%'
+    and storage_path !~ '(^|/)\.\.(/|$)'
+  ),
   file_name text not null check (char_length(file_name) between 1 and 255),
-  mime_type text,
+  mime_type text check (mime_type is null or char_length(mime_type) <= 255),
   size_bytes bigint not null check (size_bytes >= 0),
   created_by uuid default auth.uid() references public.profiles (id) on delete set null,
   deleted_at timestamptz,

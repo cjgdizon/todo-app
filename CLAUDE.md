@@ -26,6 +26,10 @@ Production-grade to-do app: Next.js PWA + Expo mobile, Supabase backend (Postgre
 - Account deletion must delete or transfer owned workspaces first (`workspaces.owner_id` is RESTRICT); authorship columns become NULL so shared work survives.
 - Policy helpers live in the `private` schema and are used as `workspace_id in (select private.my_workspace_ids())`.
 - `packages/core` uses explicit `.ts` extensions in relative imports so Deno (Edge Functions) can import it; apps import subpaths like `@todo/core/recurrence` when they need only part of it.
+- Recurrence rules are untrusted input: only FREQ, INTERVAL (capped per frequency), BYDAY, BYMONTHDAY, BYMONTH, BYSETPOS, UNTIL and WKST are accepted (`validateRrule`), and searches are bounded. Never call `rrule` directly; go through `recurrence.ts`. Import `rrule` only via `rrule-compat.ts` (its named export is missing in plain Node/Deno).
+- `packages/core` uses erasable TypeScript syntax only (no enums, namespaces or constructor parameter properties) so Node and Deno can run it; `esm-compat.test.ts` loads it in a plain Node process.
+- Time zones are IANA names (`Asia/Manila`, `UTC`), validated by trigger in the database and by luxon in core. Text columns have length caps; add one to any new free-text column.
+- Attachment files live under `<task_id>/...` (enforced by a CHECK). `anon` has no table privileges; `authenticated` has no TRUNCATE/REFERENCES/TRIGGER.
 - DB tests (`packages/db-tests`) run migrations in PGlite; they do not replace running the advisors and a smoke test on the hosted project.
 - Secrets never in client code or git. Google refresh tokens live in Supabase Vault, server-side only.
 - Google Calendar sync is opt-in; `calendar_integrations.enabled` is checked first by every `gcal-*` function.

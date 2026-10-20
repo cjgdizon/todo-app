@@ -59,12 +59,21 @@ describe("positionBetween jitter (offline collisions)", () => {
   };
 
   it("gives two clients inserting at the same spot different keys", () => {
-    const a = positionBetween(null, null);
-    const b = positionBetween(a, null);
+    const a = positionBetween(null, null, () => 0.5);
+    const b = positionBetween(a, null, () => 0.5);
     const one = positionBetween(a, b, scripted(0.1, 0.2, 0.3, 0.4));
-    const two = positionBetween(a, b, scripted(0.7, 0.8, 0.9, 0.6));
+    const two = positionBetween(a, b, scripted(0.2, 0.1, 0.4, 0.3));
     expect(one).not.toBe(two);
     for (const key of [one, two]) expect(a < key && key < b).toBe(true);
+  });
+
+  it("retries a suffix that would overshoot the upper neighbour instead of colliding", () => {
+    const a = positionBetween(null, null, () => 0.5);
+    const b = positionBetween(a, null, () => 0.5); // "a1" + a suffix of V's
+    // The first suffix (starts at 'h' > 'V') overshoots b; the second one fits.
+    const key = positionBetween(a, b, scripted(0.7, 0.8, 0.9, 0.6, 0.1, 0.2, 0.3, 0.4));
+    expect(a < key && key < b).toBe(true);
+    expect(key.length).toBeGreaterThan(2); // a jittered key, not the bare "a1"
   });
 
   it("stays strictly between neighbours and never ends in zero, even at the extremes", () => {

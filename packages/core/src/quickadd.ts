@@ -1,6 +1,6 @@
 import { parse as chronoParse } from "chrono-node";
 import type { Priority } from "./task.ts";
-import { buildRule, validateRrule } from "./recurrence.ts";
+import { isValidRrule, nextOccurrence } from "./recurrence.ts";
 import { fromFloating, toFloating, zoned } from "./zoned.ts";
 
 /**
@@ -141,11 +141,10 @@ export function parseQuickAdd(input: string, ctx: QuickAddContext): QuickAddResu
   });
 
   // Recurrence first, so weekday words are not read as one-off dates.
-  const recurrence = findRecurrence(text);
-  if (recurrence) {
-    validateRrule(recurrence.rrule);
-    text = cut(text, recurrence.start, recurrence.end);
-  }
+  // A phrase that builds an unsupported rule (e.g. "every 5000 days") stays plain text.
+  const candidate = findRecurrence(text);
+  const recurrence = candidate && isValidRrule(candidate.rrule) ? candidate : null;
+  if (recurrence) text = cut(text, recurrence.start, recurrence.end);
 
   // Dates run in floating local time (see zoned.ts), so DST is handled by luxon.
   const nowLocal = zoned(ctx.now, ctx.timeZone);
@@ -170,7 +169,7 @@ export function parseQuickAdd(input: string, ctx: QuickAddContext): QuickAddResu
     const startOfToday = nowLocal.startOf("day");
     const dtstart = toFloating(startOfToday.set({ hour, minute }));
     const boundary = toFloating(hasTime ? nowLocal : startOfToday);
-    const first = buildRule(recurrence.rrule, dtstart).after(boundary, true);
+    const first = nextOccurrence(recurrence.rrule, dtstart, boundary, true);
     if (first) due = { at: fromFloating(first, ctx.timeZone), allDay: !hasTime };
   } else if (dateFloating) {
     const at = fromFloating(dateFloating, ctx.timeZone);

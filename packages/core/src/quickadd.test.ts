@@ -122,6 +122,13 @@ describe("parseQuickAdd: recurrence", () => {
     expect(r.recurAfterCompletion).toBe(true);
   });
 
+  it("does not throw or recur when a recurrence phrase has an out-of-range interval", () => {
+    // The unsupported rule is dropped instead of surfacing a RecurrenceError.
+    const r = parseQuickAdd("Walk every 5000 days", ctx);
+    expect(r.rrule).toBeNull();
+    expect(r.recurAfterCompletion).toBe(false);
+  });
+
   it("does not treat ordinary uses of 'every' as recurrence", () => {
     const r = parseQuickAdd("Review every pull request", ctx);
     expect(r.rrule).toBeNull();

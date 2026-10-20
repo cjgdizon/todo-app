@@ -91,8 +91,9 @@ describe("tenant isolation", () => {
     await addTask(dave, ws);
 
     await asAnon(db, async () => {
-      expect((await db.query("select 1 from public.tasks")).rows).toHaveLength(0);
-      expect((await db.query("select 1 from public.workspaces")).rows).toHaveLength(0);
+      // anon has no table privileges at all, so reads fail loudly instead of returning nothing.
+      await expect(db.query("select 1 from public.tasks")).rejects.toThrow(/permission denied/);
+      await expect(db.query("select 1 from public.workspaces")).rejects.toThrow(/permission denied/);
       await expect(
         db.query("insert into public.tasks (workspace_id, title, position) values ($1, 'x', 'a0')", [ws]),
       ).rejects.toThrow();
@@ -301,7 +302,7 @@ describe("data integrity", () => {
     await expect(
       insert("title, rrule, due_at", ["x", "FREQ=DAILY", "2026-11-01T09:00:00Z"]),
     ).rejects.toThrow(/check/); // needs due_tz so recurrence is the same for every member
-    await expect(insert("title, due_tz", ["x", "not a zone!"])).rejects.toThrow(/check/);
+    await expect(insert("title, due_tz", ["x", "not a zone!"])).rejects.toThrow(/check|IANA/);
     await expect(insert("title, estimate_min", ["x", 0])).rejects.toThrow(/check/);
     await expect(
       insert("title, rrule, due_at, due_tz", ["x", "FREQ=DAILY", "2026-11-01T09:00:00Z", "Asia/Manila"]),

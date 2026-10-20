@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
-import { RecurrenceError, nextDue, validateRrule } from "./recurrence";
+import { RecurrenceError, isValidRrule, nextDue, validateRrule } from "./recurrence";
 
 const NY = "America/New_York";
 const iso = (d: Date | null) => d?.toISOString() ?? null;
@@ -124,5 +124,64 @@ describe("validateRrule", () => {
 
   it("is enforced by nextDue", () => {
     expect(() => next("FREQ=DAILY;COUNT=2", "2026-10-05T13:00:00Z")).toThrow(RecurrenceError);
+  });
+});
+
+describe("validateRrule: hostile or unsupported rules", () => {
+  it.each([
+    ["a negative interval (used to hang rrule forever)", "FREQ=DAILY;INTERVAL=-3"],
+    ["a zero interval", "FREQ=DAILY;INTERVAL=0"],
+    ["a non-numeric interval", "FREQ=DAILY;INTERVAL=abc"],
+    ["a daily interval above 999", "FREQ=DAILY;INTERVAL=1000"],
+    ["a weekly interval above 520", "FREQ=WEEKLY;INTERVAL=521"],
+    ["a monthly interval above 120", "FREQ=MONTHLY;INTERVAL=121"],
+    ["a yearly interval above 100", "FREQ=YEARLY;INTERVAL=101"],
+    ["BYHOUR", "FREQ=DAILY;BYHOUR=9"],
+    ["BYMINUTE", "FREQ=DAILY;BYMINUTE=30"],
+    ["BYSECOND", "FREQ=DAILY;BYSECOND=1,2,3"],
+    ["BYWEEKNO", "FREQ=YEARLY;BYWEEKNO=20"],
+    ["BYYEARDAY", "FREQ=YEARLY;BYYEARDAY=100"],
+    ["BYEASTER", "FREQ=YEARLY;BYEASTER=0"],
+    ["month day 0", "FREQ=MONTHLY;BYMONTHDAY=0"],
+    ["month day 32", "FREQ=MONTHLY;BYMONTHDAY=32"],
+    ["month 13", "FREQ=YEARLY;BYMONTH=13"],
+    ["set position 400", "FREQ=MONTHLY;BYDAY=MO;BYSETPOS=400"],
+    ["a repeated part", "FREQ=DAILY;FREQ=WEEKLY"],
+    ["an invalid UNTIL", "FREQ=DAILY;UNTIL=notadate"],
+    ["an hourly frequency", "FREQ=HOURLY"],
+  ])("rejects %s", (_name, rule) => {
+    expect(() => validateRrule(rule)).toThrow(RecurrenceError);
+    expect(isValidRrule(rule)).toBe(false);
+  });
+
+  it("accepts rules at the documented limits", () => {
+    for (const rule of [
+      "FREQ=DAILY;INTERVAL=999",
+      "FREQ=WEEKLY;INTERVAL=520;BYDAY=MO,WE",
+      "FREQ=MONTHLY;INTERVAL=120",
+      "FREQ=YEARLY;INTERVAL=100",
+      "FREQ=MONTHLY;BYDAY=1MO,-1FR",
+      "FREQ=MONTHLY;BYDAY=MO;BYSETPOS=-1",
+      "FREQ=MONTHLY;BYMONTHDAY=-1,15",
+      "FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=29",
+      "FREQ=WEEKLY;BYDAY=MO;WKST=SU;UNTIL=20271231T235959Z",
+    ]) {
+      expect(isValidRrule(rule), rule).toBe(true);
+    }
+  });
+});
+
+describe("nextDue: bounded work", () => {
+  it("returns null quickly for rules that can never match", () => {
+    for (const rule of ["FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30", "FREQ=MONTHLY;BYMONTHDAY=31;BYMONTH=2"]) {
+      const started = performance.now();
+      expect(next(rule, "2026-10-20T01:00:00Z"), rule).toBeNull();
+      // Unbounded, this scan takes seconds under coverage; bounded it is well under 200 ms.
+      expect(performance.now() - started, rule).toBeLessThan(400);
+    }
+  });
+
+  it("still finds the next occurrence of a valid rule at the interval limit", () => {
+    expect(iso(next("FREQ=YEARLY;INTERVAL=100", "2026-10-20T13:00:00Z"))).toBe("2126-10-20T13:00:00.000Z");
   });
 });

@@ -54,8 +54,8 @@ describe("account deletion keeps shared work", () => {
     );
     await db.query(
       `insert into public.attachments (workspace_id, task_id, created_by, storage_path, file_name, size_bytes)
-       values ($1, $2, $3, 'p', 'f.txt', 1)`,
-      [ws, task, member],
+       values ($1, $2, $3, $4, 'f.txt', 1)`,
+      [ws, task, member, `${task}/f.txt`],
     );
 
     // Account deletion first removes the user's own, unshared workspace (the owner
@@ -408,6 +408,11 @@ describe("move_project", () => {
       "insert into public.task_completions (workspace_id, task_id, completed_by) values ($1, $2, $3)",
       [src, t1, owner],
     );
+    await db.query(
+      `insert into public.attachments (workspace_id, task_id, created_by, storage_path, file_name, size_bytes)
+       values ($1, $2, $3, $4, 'doc.txt', 10)`,
+      [src, t1, owner, `${t1}/doc.txt`],
+    );
 
     await asUser(db, owner, () => db.query("select public.move_project($1, $2)", [project, shared]));
 
@@ -420,7 +425,7 @@ describe("move_project", () => {
     expect(await count("select 1 from public.tasks where project_id = $1", [project])).toBe(3);
     expect(await count("select 1 from public.sections where id = $1 and workspace_id = $2", [section, shared])).toBe(1);
     expect(await count("select 1 from public.tasks where workspace_id = $1 and project_id = $2", [src, project])).toBe(0);
-    for (const table of ["reminders", "comments", "time_entries", "task_completions"]) {
+    for (const table of ["reminders", "comments", "time_entries", "task_completions", "attachments"]) {
       expect(
         await count(`select 1 from public.${table} where task_id = $1 and workspace_id = $2`, [t1, shared]),
       ).toBe(1);

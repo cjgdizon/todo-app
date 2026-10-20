@@ -460,3 +460,17 @@ end;
 $$;
 
 revoke execute on function private.purge_deleted(interval) from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Table privileges. Row-level security is the access gate, but Supabase also
+-- grants every table privilege to the API roles by default. Remove what the API
+-- never needs: anonymous callers get no table access at all (reads fail with
+-- "permission denied" instead of returning nothing), and signed-in users lose
+-- TRUNCATE (which skips RLS), REFERENCES and TRIGGER. The default-privilege
+-- statements apply the same rules to tables created by later migrations.
+-- ---------------------------------------------------------------------------
+revoke all on all tables in schema public from anon;
+revoke truncate, references, trigger on all tables in schema public from authenticated;
+alter default privileges in schema public revoke all on tables from anon;
+alter default privileges in schema public
+  revoke truncate, references, trigger on tables from authenticated;
