@@ -62,6 +62,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
     { id: "go-upcoming", label: "Go to Upcoming", hint: "Navigate", run: go("/upcoming") },
     { id: "go-calendar", label: "Go to Calendar", hint: "Navigate", run: go("/calendar") },
     { id: "go-search", label: "Search tasks", hint: "Navigate", run: go("/search") },
+    { id: "go-settings", label: "Import or export tasks", hint: "Settings", run: go("/settings") },
     {
       id: "add",
       label: "Add a task",

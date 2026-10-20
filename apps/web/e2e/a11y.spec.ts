@@ -22,6 +22,22 @@ for (const scheme of ["light", "dark"] as const) {
       expect(await violations(page)).toEqual([]);
     });
 
+    test("the settings page, with an import preview open, has no accessibility violations", async ({ page }) => {
+      await signUp(page);
+      await page.getByRole("link", { name: "Settings (import and export)" }).click();
+      await expect(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
+      expect(await violations(page), "settings").toEqual([]);
+
+      await page.getByLabel("File to import").setInputFiles({
+        name: "tasks.csv",
+        mimeType: "text/csv",
+        buffer: Buffer.from("title,priority\n,1\nKeep me,urgent\n", "utf8"),
+      });
+      await page.getByText("2 things were skipped or changed").click();
+      await expect(page.getByRole("button", { name: "Import", exact: true })).toBeVisible();
+      expect(await violations(page), "import preview with warnings").toEqual([]);
+    });
+
     test("the project board has no accessibility violations", async ({ page }) => {
       await signUp(page);
       await createProject(page, "Plan");

@@ -58,6 +58,7 @@ function NavLink({
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { client, timeZone } = useData();
   const tasks = useTasks().data ?? [];
   const projects = useProjects().data ?? [];
@@ -231,6 +232,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
 
         <div className="mt-auto flex flex-col gap-1 border-t border-border pt-3">
+          <Link
+            href="/settings"
+            aria-current={pathname === "/settings" ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+            className="rounded-sm px-2 py-1 text-left text-sm text-text-muted"
+          >
+            Settings (import and export)
+          </Link>
           <ThemeToggle />
           <button
             type="button"
