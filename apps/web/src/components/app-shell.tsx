@@ -15,6 +15,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { CommandPalette } from "./command-palette";
 import {
+  CalendarIcon,
   FilterIcon,
   HashIcon,
   InboxIcon,
@@ -156,6 +157,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </NavLink>
           <NavLink href="/upcoming" icon={<UpcomingIcon />}>
             Upcoming
+          </NavLink>
+          <NavLink href="/calendar" icon={<CalendarIcon />}>
+            Calendar
           </NavLink>
           <NavLink href="/search" icon={<SearchIcon />}>
             Search

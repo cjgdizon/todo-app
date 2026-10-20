@@ -41,6 +41,12 @@ export const UpcomingIcon = (p: IconProps) => (
     <path d="M3.5 10h17M8 3v4M16 3v4" />
   </Icon>
 );
+export const CalendarIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.5" y="4" width="17" height="16" rx="2" />
+    <path d="M3.5 9h17M9 9v11M15 9v11M3.5 14.5h17" />
+  </Icon>
+);
 export const SearchIcon = (p: IconProps) => (
   <Icon {...p}>
     <circle cx="11" cy="11" r="6" />

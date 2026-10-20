@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { addTask, openTask, signUp, taskRows } from "./helpers";
+import { addTask, createProject, openTask, signUp, taskRows } from "./helpers";
 
 /** WCAG 2.0 to 2.2 level A and AA rules. The same engine Lighthouse's accessibility audit uses. */
 async function violations(page: Page): Promise<string[]> {
@@ -22,6 +22,17 @@ for (const scheme of ["light", "dark"] as const) {
       expect(await violations(page)).toEqual([]);
     });
 
+    test("the project board has no accessibility violations", async ({ page }) => {
+      await signUp(page);
+      await createProject(page, "Plan");
+      await addTask(page, "Write spec");
+      await page.getByRole("link", { name: "Board", exact: true }).click();
+      await page.getByRole("textbox", { name: "New section" }).fill("Doing");
+      await page.getByRole("button", { name: "Add section" }).click();
+      await expect(page.getByRole("region", { name: "Doing" })).toBeVisible();
+      expect(await violations(page), "project board").toEqual([]);
+    });
+
     test("app screens have no accessibility violations", async ({ page }) => {
       await signUp(page);
       await addTask(page, "Pay rent every 1st at 9am p2 @bills");
@@ -40,6 +51,10 @@ for (const scheme of ["light", "dark"] as const) {
       expect(await violations(page), "task drawer").toEqual([]);
 
       await page.keyboard.press("Escape");
+      await page.getByRole("link", { name: "Calendar" }).click();
+      await expect(page.getByRole("heading", { name: "Calendar", level: 1 })).toBeVisible();
+      expect(await violations(page), "calendar").toEqual([]);
+
       await page.keyboard.press("Control+K");
       await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();
       expect(await violations(page), "command palette").toEqual([]);

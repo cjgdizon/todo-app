@@ -60,6 +60,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
     { id: "go-inbox", label: "Go to Inbox", hint: "Navigate", run: go("/inbox") },
     { id: "go-today", label: "Go to Today", hint: "Navigate", run: go("/today") },
     { id: "go-upcoming", label: "Go to Upcoming", hint: "Navigate", run: go("/upcoming") },
+    { id: "go-calendar", label: "Go to Calendar", hint: "Navigate", run: go("/calendar") },
     { id: "go-search", label: "Search tasks", hint: "Navigate", run: go("/search") },
     {
       id: "add",

@@ -30,6 +30,14 @@ export async function addTask(page: Page, text: string): Promise<void> {
   await expect(quickAdd(page)).toHaveValue("");
 }
 
+/** Creates a project from the sidebar and lands on its page. */
+export async function createProject(page: Page, name: string): Promise<void> {
+  await page.getByRole("button", { name: "Add project" }).click();
+  await page.getByLabel("Project name").fill(name);
+  await page.getByLabel("Project name").press("Enter");
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+}
+
 /** Every visible task row, in display order. */
 export function taskRows(page: Page) {
   return page.locator("[data-task-id]:visible");

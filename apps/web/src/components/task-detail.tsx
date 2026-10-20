@@ -7,6 +7,7 @@ import {
   useData,
   useLabels,
   useProjects,
+  useSections,
   useTasks,
   useTrashTask,
   useUpdateTask,
@@ -60,6 +61,8 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
   const allTasks = useTasks().data ?? [];
   const projects = useProjects().data ?? [];
   const labels = useLabels().data ?? [];
+  const sections = useSections().data ?? [];
+  const projectSections = sections.filter((section) => section.projectId === task.projectId);
   const update = useUpdateTask();
   const completeTask = useCompleteTask();
   const trashTask = useTrashTask();
@@ -106,8 +109,9 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
   }
 
   function setProject(projectId: string | null) {
-    // A parent and its subtasks change project together, in one statement.
-    save({ projectId }, descendantIds(allTasks, task.id));
+    // A parent and its subtasks change project together, in one statement. The board column
+    // belongs to the old project, so it is cleared.
+    save({ projectId, sectionId: null }, descendantIds(allTasks, task.id));
   }
 
   function toggleLabel(labelId: string, on: boolean) {
@@ -323,6 +327,24 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
           </div>
           {task.parentId !== null && (
             <p className="-mt-3 text-sm text-text-muted">A subtask stays in its parent&apos;s project.</p>
+          )}
+
+          {task.projectId !== null && task.parentId === null && projectSections.length > 0 && (
+            <Field label="Section" htmlFor="task-section">
+              <select
+                id="task-section"
+                className={control}
+                value={task.sectionId ?? ""}
+                onChange={(event) => save({ sectionId: event.target.value || null })}
+              >
+                <option value="">No section</option>
+                {projectSections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
           )}
 
           <fieldset>

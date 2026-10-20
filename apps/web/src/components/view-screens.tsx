@@ -3,7 +3,9 @@
 import { useLabels, useProjects, useSavedFilters } from "@todo/data";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { BoardView } from "./board-view";
 import { DeleteFilterButton, SaveFilterButton } from "./filter-actions";
+import { LayoutSwitch, type Layout } from "./layout-switch";
 import { ProjectActions } from "./project-actions";
 import { TaskView } from "./task-view";
 
@@ -31,15 +33,21 @@ function Pending() {
 
 export function ProjectScreen({ id }: { id: string }) {
   const projects = useProjects();
+  const layout: Layout = useSearchParams().get("layout") === "board" ? "board" : "list";
   const project = projects.data?.find((p) => p.id === id);
   if (projects.isPending) return <Pending />;
   if (!project) return <Missing what="project" />;
-  return (
-    <TaskView
-      view={{ kind: "project", id }}
-      title={project.name}
-      actions={<ProjectActions key={project.id} project={project} />}
-    />
+
+  const actions = (
+    <>
+      <LayoutSwitch layout={layout} />
+      <ProjectActions key={project.id} project={project} />
+    </>
+  );
+  return layout === "board" ? (
+    <BoardView project={project} actions={actions} />
+  ) : (
+    <TaskView view={{ kind: "project", id }} title={project.name} actions={actions} />
   );
 }
 
