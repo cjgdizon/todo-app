@@ -40,3 +40,8 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          # The web build validates these at import time. Placeholders are enough: nothing is
+          # contacted during the build, and the real values are public keys set at deploy time.
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
