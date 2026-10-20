@@ -26,6 +26,20 @@ function toTask(row: TaskRow): Task {
   }
 }
 
+export function listTasks(db: Db): Task[] {
+  const rows = db.prepare('SELECT * FROM tasks ORDER BY id').all() as TaskRow[]
+  return rows.map(toTask)
+}
+
+export function completeTask(db: Db, id: number): Task | undefined {
+  db.prepare(
+    `UPDATE tasks SET completed = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+     WHERE id = ? AND completed = 0`,
+  ).run(id)
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as TaskRow | undefined
+  return row && toTask(row)
+}
+
 export function createTask(db: Db, title: string): Task {
   const { lastInsertRowid } = db.prepare('INSERT INTO tasks (title) VALUES (?)').run(title)
   const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(lastInsertRowid) as TaskRow
