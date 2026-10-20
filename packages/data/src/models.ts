@@ -36,6 +36,15 @@ export interface Project {
   archived: boolean;
 }
 
+/** A column of a project's board. Tasks without a section sit in the project's first, unnamed column. */
+export interface Section {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  name: string;
+  position: string;
+}
+
 export interface Label {
   id: string;
   workspaceId: string;
@@ -131,6 +140,19 @@ export function parseProject(row: unknown): Project {
     position: r.position,
     archived: r.archived_at !== null,
   };
+}
+
+const sectionRow = z.object({
+  id,
+  workspace_id: id,
+  project_id: id,
+  name: z.string().min(1),
+  position: z.string(),
+});
+
+export function parseSection(row: unknown): Section {
+  const r = sectionRow.parse(row);
+  return { id: r.id, workspaceId: r.workspace_id, projectId: r.project_id, name: r.name, position: r.position };
 }
 
 const labelRow = z.object({

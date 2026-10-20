@@ -33,6 +33,20 @@ describe("applyTaskChange", () => {
     expect(next).toMatchObject({ dueAt: null, projectId: null, notes: null });
   });
 
+  it("sets and clears the section", () => {
+    const placed = applyTaskChange(task, { sectionId: "s1" });
+    expect(placed?.sectionId).toBe("s1");
+    expect(applyTaskChange(placed as Task, { sectionId: null })?.sectionId).toBeNull();
+  });
+
+  it("moves to another project and out of its section in one change", () => {
+    const inSection = { ...task, sectionId: "s1" };
+    expect(applyTaskChange(inSection, { projectId: "p2", sectionId: null })).toMatchObject({
+      projectId: "p2",
+      sectionId: null,
+    });
+  });
+
   it("replaces the label ids", () => {
     expect(applyTaskChange(task, { labelIds: ["l2", "l3"] })?.labelIds).toEqual(["l2", "l3"]);
   });

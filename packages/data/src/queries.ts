@@ -6,12 +6,14 @@ import {
   parseProfile,
   parseProject,
   parseSavedFilter,
+  parseSection,
   parseTask,
   parseWorkspace,
   type Label,
   type Profile,
   type Project,
   type SavedFilter,
+  type Section,
   type Task,
   type Workspace,
 } from "./models.ts";
@@ -229,6 +231,8 @@ export interface TaskPatch {
   notes?: string | null;
   priority?: Priority;
   projectId?: string | null;
+  /** A board column of the task's project. Clear it (null) whenever the project changes. */
+  sectionId?: string | null;
   parentId?: string | null;
   dueAt?: Date | null;
   dueAllDay?: boolean;
@@ -250,6 +254,7 @@ export function toTaskUpdate(patch: TaskPatch): TaskUpdate {
   if (patch.notes !== undefined) update.notes = patch.notes;
   if (patch.priority !== undefined) update.priority = patch.priority;
   if (patch.projectId !== undefined) update.project_id = patch.projectId;
+  if (patch.sectionId !== undefined) update.section_id = patch.sectionId;
   if (patch.parentId !== undefined) update.parent_id = patch.parentId;
   if (patch.dueAt !== undefined) update.due_at = iso(patch.dueAt);
   if (patch.dueAllDay !== undefined) update.due_all_day = patch.dueAllDay;
@@ -366,6 +371,62 @@ export async function trashProject(client: TodoClient, workspaceId: string, id: 
   check(tasksError);
   const { error } = await client.from("projects").update({ deleted_at: deletedAt }).eq("id", id);
   check(error);
+}
+
+export async function fetchSections(client: TodoClient, workspaceId: string): Promise<Section[]> {
+  const rows = await fetchAll((from, to) =>
+    client
+      .from("sections")
+      .select("id,workspace_id,project_id,name,position")
+      .eq("workspace_id", workspaceId)
+      .is("deleted_at", null)
+      .order("position")
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(parseSection);
+}
+
+export async function insertSection(
+  client: TodoClient,
+  section: { id: string; workspaceId: string; projectId: string; name: string; position: string },
+): Promise<void> {
+  const { error } = await client.from("sections").insert({
+    id: section.id,
+    workspace_id: section.workspaceId,
+    project_id: section.projectId,
+    name: section.name,
+    position: section.position,
+  });
+  check(error);
+}
+
+export async function updateSection(
+  client: TodoClient,
+  id: string,
+  patch: { name?: string; deletedAt?: Date | null },
+): Promise<void> {
+  const update: Database["public"]["Tables"]["sections"]["Update"] = {};
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.deletedAt !== undefined) update.deleted_at = iso(patch.deletedAt);
+  if (Object.keys(update).length === 0) return;
+  const { error } = await client.from("sections").update(update).eq("id", id);
+  check(error);
+}
+
+/**
+ * Takes every task out of a section, so the section can be deleted without leaving tasks
+ * pointing at a hidden column. Returns the ids of the tasks it moved.
+ */
+export async function emptySection(client: TodoClient, workspaceId: string, sectionId: string): Promise<string[]> {
+  const { data, error } = await client
+    .from("tasks")
+    .update({ section_id: null })
+    .eq("workspace_id", workspaceId)
+    .eq("section_id", sectionId)
+    .select("id");
+  check(error);
+  return (data ?? []).map((row) => row.id);
 }
 
 export async function insertLabel(

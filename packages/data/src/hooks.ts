@@ -9,21 +9,25 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import type { TodoClient } from "./client.ts";
-import type { Label, Project, SavedFilter, Task } from "./models.ts";
+import type { Label, Project, SavedFilter, Section, Task } from "./models.ts";
 import {
+  emptySection,
   fetchBootstrap,
   fetchLabels,
   fetchProjects,
   fetchSavedFilters,
+  fetchSections,
   fetchTasks,
   insertLabel,
   insertProject,
   insertSavedFilter,
+  insertSection,
   insertTask,
   setTaskLabels,
   trashProject,
   updateProject,
   updateSavedFilter,
+  updateSection,
   updateTask,
 } from "./queries.ts";
 import { applyTaskChange, type TaskChange } from "./taskPatch.ts";
@@ -56,6 +60,7 @@ export const queryKeys = {
   labels: (workspaceId: string) => ["labels", workspaceId] as const,
   tasks: (workspaceId: string) => ["tasks", workspaceId] as const,
   savedFilters: (workspaceId: string) => ["savedFilters", workspaceId] as const,
+  sections: (workspaceId: string) => ["sections", workspaceId] as const,
 };
 
 /** Profile and workspace for the signed-in user; load this before rendering the app shell. */
@@ -344,13 +349,22 @@ export function useBulkActions() {
     /** Moves top-level tasks and their subtasks; selected subtasks without their parent are skipped. */
     async move(ids: readonly string[], projectId: string | null): Promise<BulkResult> {
       const plan = planBulkMove(allTasks(), ids);
-      const before = groupBy(pick(plan.ids), (task) => task.projectId);
-      await apply(plan.ids, { projectId });
+      // A task leaves its board column when it changes project; remember both to restore them.
+      const before = new Map<string, { projectId: string | null; sectionId: string | null; ids: string[] }>();
+      for (const task of pick(plan.ids)) {
+        const key = `${task.projectId ?? ""}|${task.sectionId ?? ""}`;
+        const group = before.get(key) ?? { projectId: task.projectId, sectionId: task.sectionId, ids: [] };
+        group.ids.push(task.id);
+        before.set(key, group);
+      }
+      await apply(plan.ids, { projectId, sectionId: null });
       return {
         count: plan.ids.length,
         skipped: plan.skipped.length,
         undo: async () => {
-          for (const [previous, group] of before) await apply(group, { projectId: previous });
+          for (const group of before.values()) {
+            await apply(group.ids, { projectId: group.projectId, sectionId: group.sectionId });
+          }
         },
       };
     },
@@ -429,6 +443,123 @@ export function useDeleteSavedFilter() {
   return async (filter: SavedFilter): Promise<{ undo: () => Promise<void> }> => {
     await mutation.mutateAsync({ id: filter.id, deletedAt: new Date() });
     return { undo: () => mutation.mutateAsync({ id: filter.id, deletedAt: null }) };
+  };
+}
+
+export function useSections() {
+  const { client, workspaceId } = useData();
+  return useQuery({
+    queryKey: queryKeys.sections(workspaceId),
+    queryFn: () => fetchSections(client, workspaceId),
+  });
+}
+
+/** Adds a section (board column) at the end of a project's columns. */
+export function useCreateSection() {
+  const { client, workspaceId } = useData();
+  const queryClient = useQueryClient();
+  const key = queryKeys.sections(workspaceId);
+
+  const mutation = useMutation({
+    mutationFn: (section: Section) =>
+      insertSection(client, {
+        id: section.id,
+        workspaceId,
+        projectId: section.projectId,
+        name: section.name,
+        position: section.position,
+      }),
+    onMutate: async (section) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Section[]>(key);
+      queryClient.setQueryData<Section[]>(key, (sections) => [...(sections ?? []), section]);
+      return { previous };
+    },
+    onError: (_error, _section, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
+  return async (projectId: string, name: string): Promise<Section> => {
+    const sections = queryClient.getQueryData<Section[]>(key) ?? [];
+    const last = sections
+      .filter((s) => s.projectId === projectId)
+      .reduce<string | null>((max, s) => (max === null || s.position > max ? s.position : max), null);
+    const section: Section = {
+      id: crypto.randomUUID(),
+      workspaceId,
+      projectId,
+      name: name.trim(),
+      position: positionBetween(last, null),
+    };
+    await mutation.mutateAsync(section);
+    return section;
+  };
+}
+
+export function useRenameSection() {
+  const { client, workspaceId } = useData();
+  const queryClient = useQueryClient();
+  const key = queryKeys.sections(workspaceId);
+
+  return useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => updateSection(client, id, { name }),
+    onMutate: async ({ id, name }) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<Section[]>(key);
+      queryClient.setQueryData<Section[]>(key, (sections) => sections?.map((s) => (s.id === id ? { ...s, name } : s)));
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+}
+
+/**
+ * Deletes a section. Its tasks first move to "No section", so none are left pointing at a
+ * hidden column; the result's undo restores the section and puts each task back.
+ */
+export function useDeleteSection() {
+  const { client, workspaceId } = useData();
+  const queryClient = useQueryClient();
+  const sectionsKey = queryKeys.sections(workspaceId);
+  const tasksKey = queryKeys.tasks(workspaceId);
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: sectionsKey }),
+      queryClient.invalidateQueries({ queryKey: tasksKey }),
+    ]);
+
+  return async (section: Section): Promise<{ undo: () => Promise<void> }> => {
+    const previousSections = queryClient.getQueryData<Section[]>(sectionsKey);
+    const previousTasks = queryClient.getQueryData<Task[]>(tasksKey);
+    queryClient.setQueryData<Section[]>(sectionsKey, (sections) => sections?.filter((s) => s.id !== section.id));
+    queryClient.setQueryData<Task[]>(tasksKey, (tasks) =>
+      tasks?.map((t) => (t.sectionId === section.id ? { ...t, sectionId: null } : t)),
+    );
+
+    let movedIds: string[];
+    try {
+      movedIds = await emptySection(client, workspaceId, section.id);
+      await updateSection(client, section.id, { deletedAt: new Date() });
+    } catch (error) {
+      queryClient.setQueryData(sectionsKey, previousSections);
+      queryClient.setQueryData(tasksKey, previousTasks);
+      throw error;
+    } finally {
+      await refresh();
+    }
+
+    return {
+      undo: async () => {
+        await updateSection(client, section.id, { deletedAt: null });
+        if (movedIds.length > 0) await updateTask(client, movedIds, { sectionId: section.id });
+        await refresh();
+      },
+    };
   };
 }
 

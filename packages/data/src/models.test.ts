@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseLabel, parseProfile, parseProject, parseSavedFilter, parseTask } from "./models.ts";
+import {
+  parseLabel,
+  parseProfile,
+  parseProject,
+  parseSavedFilter,
+  parseSection,
+  parseTask,
+} from "./models.ts";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
@@ -129,6 +136,29 @@ describe("parseProject, parseLabel, parseProfile", () => {
         version: 1,
       }),
     ).toEqual({ id: uuid(7), workspaceId: uuid(5), name: "bills", color: null });
+  });
+
+  it("maps a section row", () => {
+    expect(
+      parseSection({
+        id: uuid(11),
+        workspace_id: uuid(5),
+        project_id: uuid(2),
+        name: "Doing",
+        position: "a1",
+        deleted_at: null,
+        created_at: "2026-10-20T10:00:00+00:00",
+        updated_at: "2026-10-20T10:00:00+00:00",
+        updated_by: null,
+        version: 1,
+      }),
+    ).toEqual({ id: uuid(11), workspaceId: uuid(5), projectId: uuid(2), name: "Doing", position: "a1" });
+  });
+
+  it("rejects a section without a project", () => {
+    expect(() =>
+      parseSection({ id: uuid(11), workspace_id: uuid(5), project_id: null, name: "Doing", position: "a1" }),
+    ).toThrow();
   });
 
   it("maps a saved filter row", () => {
