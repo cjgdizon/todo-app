@@ -8,7 +8,9 @@ import {
 } from "@todo/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
+import type { ImportPlan } from "@todo/core";
 import type { TodoClient } from "./client.ts";
+import { applyImportPlan, type ImportProgress, type ImportResult } from "./import-apply.ts";
 import type { Label, Project, SavedFilter, Section, Task } from "./models.ts";
 import {
   emptySection,
@@ -379,6 +381,35 @@ export function useBulkActions() {
         undo: () => apply(all, { deletedAt: null }),
       };
     },
+  };
+}
+
+/** Creates what an import plan describes (undoable, rolled back on failure), then refreshes every list. */
+export function useApplyImport() {
+  const { client, workspaceId, userId } = useData();
+  const queryClient = useQueryClient();
+  const refresh = () =>
+    Promise.all(
+      [queryKeys.tasks, queryKeys.projects, queryKeys.labels, queryKeys.sections].map((key) =>
+        queryClient.invalidateQueries({ queryKey: key(workspaceId) }),
+      ),
+    );
+
+  return async (plan: ImportPlan, onProgress?: (progress: ImportProgress) => void): Promise<ImportResult> => {
+    try {
+      const result = await applyImportPlan(client, { workspaceId, userId }, plan, onProgress);
+      await refresh();
+      return {
+        counts: result.counts,
+        undo: async () => {
+          await result.undo();
+          await refresh();
+        },
+      };
+    } catch (error) {
+      await refresh();
+      throw error;
+    }
   };
 }
 

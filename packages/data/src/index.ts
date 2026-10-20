@@ -4,5 +4,7 @@ export * from "./hooks.ts";
 export * from "./models.ts";
 export { DataError, updateProfileTimeZone } from "./queries.ts";
 export type { TaskPatch } from "./queries.ts";
+export type { ImportProgress, ImportResult } from "./import-apply.ts";
 export { applyTaskChange, type TaskChange } from "./taskPatch.ts";
+export { importContextFrom, toExchangeData } from "./transfer.ts";
 export { positionAtEnd, taskInputFromQuickAdd, type TaskInput } from "./taskInput.ts";
