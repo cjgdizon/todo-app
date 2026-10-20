@@ -19,12 +19,17 @@ that install scripts were skipped, run `npm install-scripts approve better-sqlit
 <!-- AUTO-GENERATED: package.json scripts -->
 | Command | Where | Description |
 |---------|-------|-------------|
+| `npm run dev` | repo root | Starts the API server (delegates to `npm run dev -w server`) |
+| `npm run dev` | `server/` | Starts the API with `tsx src/index.ts` on `http://localhost:3000` |
 | `npm test` | repo root | Runs the server test suite (delegates to `npm test -w server`) |
 | `npm test` | `server/` | Runs all tests once with Vitest |
 | `npm run test:coverage` | `server/` | Runs all tests once and prints a V8 coverage report |
 <!-- /AUTO-GENERATED -->
 
-There is no lint, build, or dev-server script yet.
+The dev server reads two optional environment variables: `PORT` (default `3000`) and
+`DB_PATH` (default `todo.db`, created in the directory you run it from; git ignores it).
+
+There is no lint or build script yet.
 
 ## Testing
 
