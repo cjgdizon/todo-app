@@ -1,4 +1,11 @@
-import { descendantIds, planCompletion, positionBetween } from "@todo/core";
+import {
+  descendantIds,
+  planBulkCompletion,
+  planBulkMove,
+  planCompletion,
+  positionBetween,
+  withDescendants,
+} from "@todo/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import type { TodoClient } from "./client.ts";
@@ -266,6 +273,98 @@ export function useTrashTask() {
       count: alsoIds.length + 1,
       undo: () => mutateAsync({ id: task.id, change: { deletedAt: null }, alsoIds }),
     };
+  };
+}
+
+export interface BulkResult {
+  /** How many tasks the action changed. */
+  count: number;
+  /** Selected tasks the action had to leave alone (subtasks that cannot change project alone). */
+  skipped: number;
+  /** Puts every changed task back exactly as it was. */
+  undo: () => Promise<void>;
+}
+
+/** Actions on a set of selected tasks. Each saves in as few statements as it can and is undoable. */
+export function useBulkActions() {
+  const { workspaceId, timeZone } = useData();
+  const queryClient = useQueryClient();
+  const { mutateAsync } = useUpdateTask();
+
+  const allTasks = () => queryClient.getQueryData<Task[]>(queryKeys.tasks(workspaceId)) ?? [];
+  const pick = (ids: readonly string[]) => {
+    const wanted = new Set(ids);
+    return allTasks().filter((task) => wanted.has(task.id));
+  };
+  /** One statement for the whole set; nothing to do for an empty set. */
+  const apply = async (ids: readonly string[], change: TaskChange) => {
+    const [id, ...alsoIds] = ids;
+    if (id !== undefined) await mutateAsync({ id, change, alsoIds });
+  };
+  /** Groups ids by a value, so undo can restore each group to its own previous value. */
+  const groupBy = <K>(tasks: readonly Task[], key: (task: Task) => K) => {
+    const groups = new Map<K, string[]>();
+    for (const task of tasks) groups.set(key(task), [...(groups.get(key(task)) ?? []), task.id]);
+    return groups;
+  };
+
+  return {
+    /** Completes plain tasks and moves recurring ones to their next date. */
+    async complete(ids: readonly string[]): Promise<BulkResult> {
+      const selected = pick(ids).filter((task) => task.completedAt === null);
+      const plan = planBulkCompletion(selected, new Date(), timeZone);
+      const previousDue = new Map(selected.map((task) => [task.id, task.dueAt]));
+      await apply(plan.completeIds, { completedAt: new Date() });
+      for (const step of plan.advances) await mutateAsync({ id: step.id, change: { dueAt: step.nextDueAt } });
+      return {
+        count: selected.length,
+        skipped: 0,
+        undo: async () => {
+          await apply(plan.completeIds, { completedAt: null });
+          for (const step of plan.advances) {
+            await mutateAsync({ id: step.id, change: { dueAt: previousDue.get(step.id) ?? null } });
+          }
+        },
+      };
+    },
+
+    async setPriority(ids: readonly string[], priority: Task["priority"]): Promise<BulkResult> {
+      const selected = pick(ids);
+      const before = groupBy(selected, (task) => task.priority);
+      await apply(selected.map((task) => task.id), { priority });
+      return {
+        count: selected.length,
+        skipped: 0,
+        undo: async () => {
+          for (const [previous, group] of before) await apply(group, { priority: previous });
+        },
+      };
+    },
+
+    /** Moves top-level tasks and their subtasks; selected subtasks without their parent are skipped. */
+    async move(ids: readonly string[], projectId: string | null): Promise<BulkResult> {
+      const plan = planBulkMove(allTasks(), ids);
+      const before = groupBy(pick(plan.ids), (task) => task.projectId);
+      await apply(plan.ids, { projectId });
+      return {
+        count: plan.ids.length,
+        skipped: plan.skipped.length,
+        undo: async () => {
+          for (const [previous, group] of before) await apply(group, { projectId: previous });
+        },
+      };
+    },
+
+    /** Trashes the tasks and all their subtasks. */
+    async trash(ids: readonly string[]): Promise<BulkResult> {
+      const all = withDescendants(allTasks(), ids);
+      await apply(all, { deletedAt: new Date() });
+      return {
+        count: all.length,
+        skipped: 0,
+        undo: () => apply(all, { deletedAt: null }),
+      };
+    },
   };
 }
 

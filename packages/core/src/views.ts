@@ -135,6 +135,32 @@ export function descendantIds(
   return out;
 }
 
+/** `ids` plus every subtask under any of them, each id once. */
+export function withDescendants(
+  tasks: readonly { id: string; parentId: string | null }[],
+  ids: readonly string[],
+): string[] {
+  const all = new Set(ids);
+  for (const id of ids) for (const child of descendantIds(tasks, id)) all.add(child);
+  return [...all];
+}
+
+/**
+ * Which tasks a bulk "move to project" can change. A subtask must stay in its parent's
+ * project (the database enforces it), so only selected top-level tasks move, and they take
+ * all their subtasks along. A selected subtask without its parent is reported in `skipped`.
+ */
+export function planBulkMove(
+  tasks: readonly { id: string; parentId: string | null }[],
+  selectedIds: readonly string[],
+): { ids: string[]; skipped: string[] } {
+  const parentOf = new Map(tasks.map((task) => [task.id, task.parentId]));
+  const roots = selectedIds.filter((id) => parentOf.get(id) === null);
+  const ids = withDescendants(tasks, roots);
+  const moved = new Set(ids);
+  return { ids, skipped: selectedIds.filter((id) => !moved.has(id)) };
+}
+
 export interface CompletableTask {
   dueAt: Date | null;
   rrule: string | null;
@@ -162,4 +188,23 @@ export function planCompletion(
     afterCompletion: task.recurAfterCompletion,
   });
   return nextDueAt ? { kind: "advance", nextDueAt } : { kind: "complete" };
+}
+
+/**
+ * `planCompletion` for many tasks at once: the ones that simply finish are listed together
+ * (so they can be saved in one statement), recurring ones each get their own next date.
+ */
+export function planBulkCompletion<T extends CompletableTask & { id: string }>(
+  tasks: readonly T[],
+  completedAt: Date,
+  fallbackZone: string,
+): { completeIds: string[]; advances: { id: string; nextDueAt: Date }[] } {
+  const completeIds: string[] = [];
+  const advances: { id: string; nextDueAt: Date }[] = [];
+  for (const task of tasks) {
+    const plan = planCompletion(task, completedAt, fallbackZone);
+    if (plan.kind === "advance") advances.push({ id: task.id, nextDueAt: plan.nextDueAt });
+    else completeIds.push(task.id);
+  }
+  return { completeIds, advances };
 }

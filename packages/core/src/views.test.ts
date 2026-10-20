@@ -5,7 +5,10 @@ import {
   descendantIds,
   dueBucket,
   groupUpcoming,
+  planBulkCompletion,
+  planBulkMove,
   planCompletion,
+  withDescendants,
 } from "./views.ts";
 
 // Tuesday 2026-10-20 18:00 in Manila (UTC+8, no DST).
@@ -126,6 +129,99 @@ describe("descendantIds", () => {
 
   it("does not loop on a cycle in bad data", () => {
     expect(descendantIds([t("a", "b"), t("b", "a")], "a").sort()).toEqual(["b"]);
+  });
+});
+
+describe("withDescendants", () => {
+  const t = (id: string, parentId: string | null) => ({ id, parentId });
+  const list = [t("a", null), t("a1", "a"), t("a2", "a"), t("a11", "a1"), t("b", null), t("b1", "b")];
+
+  it("adds every nested subtask of each id, without duplicates", () => {
+    expect(withDescendants(list, ["a", "a1"]).sort()).toEqual(["a", "a1", "a11", "a2"]);
+  });
+
+  it("keeps ids as they are when they have no subtasks", () => {
+    expect(withDescendants(list, ["a2", "b1"]).sort()).toEqual(["a2", "b1"]);
+  });
+
+  it("ignores ids that are not in the list of tasks", () => {
+    expect(withDescendants(list, ["ghost"])).toEqual(["ghost"]);
+  });
+});
+
+describe("planBulkMove", () => {
+  const t = (id: string, parentId: string | null) => ({ id, parentId });
+  const list = [t("a", null), t("a1", "a"), t("b", null), t("b1", "b"), t("c", null)];
+
+  it("moves selected top-level tasks together with all their subtasks", () => {
+    const plan = planBulkMove(list, ["a", "c"]);
+    expect([...plan.ids].sort()).toEqual(["a", "a1", "c"]);
+    expect(plan.skipped).toEqual([]);
+  });
+
+  it("skips a subtask whose parent is not selected, because it must stay with its parent", () => {
+    const plan = planBulkMove(list, ["b1", "c"]);
+    expect(plan.ids).toEqual(["c"]);
+    expect(plan.skipped).toEqual(["b1"]);
+  });
+
+  it("does not skip a selected subtask when its parent is selected too", () => {
+    const plan = planBulkMove(list, ["a", "a1"]);
+    expect([...plan.ids].sort()).toEqual(["a", "a1"]);
+    expect(plan.skipped).toEqual([]);
+  });
+
+  it("returns nothing for an empty selection", () => {
+    expect(planBulkMove(list, [])).toEqual({ ids: [], skipped: [] });
+  });
+});
+
+describe("planBulkCompletion", () => {
+  const done = ctx.now;
+  const task = (id: string, extra: Partial<Parameters<typeof planCompletion>[0]> = {}) => ({
+    id,
+    dueAt: null,
+    rrule: null,
+    dueTz: null,
+    recurAfterCompletion: false,
+    ...extra,
+  });
+
+  it("completes plain tasks together and advances recurring ones individually", () => {
+    const plan = planBulkCompletion(
+      [
+        task("plain"),
+        task("weekly", {
+          dueAt: at("2026-10-19T01:00:00Z"),
+          rrule: "FREQ=WEEKLY;BYDAY=MO",
+          dueTz: "Asia/Manila",
+        }),
+        task("dated", { dueAt: at("2026-10-19T01:00:00Z") }),
+      ],
+      done,
+      "UTC",
+    );
+    expect(plan.completeIds.sort()).toEqual(["dated", "plain"]);
+    expect(plan.advances).toEqual([{ id: "weekly", nextDueAt: at("2026-10-26T01:00:00Z") }]);
+  });
+
+  it("completes a recurring task whose rule has ended", () => {
+    const plan = planBulkCompletion(
+      [
+        task("over", {
+          dueAt: at("2026-10-19T01:00:00Z"),
+          rrule: "FREQ=DAILY;UNTIL=20261019T020000Z",
+          dueTz: "Asia/Manila",
+        }),
+      ],
+      done,
+      "UTC",
+    );
+    expect(plan).toEqual({ completeIds: ["over"], advances: [] });
+  });
+
+  it("returns an empty plan for no tasks", () => {
+    expect(planBulkCompletion([], done, "UTC")).toEqual({ completeIds: [], advances: [] });
   });
 });
 
