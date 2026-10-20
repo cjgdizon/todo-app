@@ -14,6 +14,7 @@ Production-grade to-do app: Next.js PWA + Expo mobile, Supabase backend (Postgre
 
 ## Commands
 - `pnpm install`, `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm build`
+- Local Supabase (Docker Desktop must be running): `pnpm db:start`, `pnpm db:status` (prints the keys), `pnpm db:reset` (re-applies every migration to an empty database), `pnpm db:stop`. API `http://127.0.0.1:54321`, Postgres `127.0.0.1:54322`, mail catcher `http://127.0.0.1:54324`. Email confirmation is off locally. `apps/web/.env.development.local` (gitignored) points `next dev` at it; delete that file to use the hosted project. Local credentials and test users are fine to create here; never do so against the hosted project. The stack keeps running after `db:start` until `db:stop`.
 
 ## Conventions
 - Domain logic only in `packages/core`; components and Edge Functions call it, never reimplement it.
