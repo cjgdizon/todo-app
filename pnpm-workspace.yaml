@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# pnpm blocks dependency install scripts by default; esbuild (used by Vitest) is the only one we allow
+allowBuilds:
+  esbuild: true
