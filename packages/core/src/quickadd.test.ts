@@ -135,3 +135,52 @@ describe("parseQuickAdd: recurrence", () => {
     expect(r.title).toBe("Review every pull request");
   });
 });
+
+describe("parseQuickAdd: recurrence with a start date", () => {
+  it("anchors on a weekday written before the recurrence", () => {
+    const r = parseQuickAdd("Meet friday at 3pm every week", ctx);
+    expect(r.title).toBe("Meet");
+    expect(r.rrule).toBe("FREQ=WEEKLY");
+    expect(r.due).toEqual({ at: new Date("2026-10-23T07:00:00Z"), allDay: false });
+  });
+
+  it("anchors a monthly rule on 'the 15th'", () => {
+    const r = parseQuickAdd("Pay rent every month on the 15th", ctx);
+    expect(r.title).toBe("Pay rent");
+    expect(r.rrule).toBe("FREQ=MONTHLY;BYMONTHDAY=15");
+    expect(r.due).toEqual({ at: new Date("2026-11-14T16:00:00Z"), allDay: true });
+  });
+
+  it("anchors a yearly rule on a month and day", () => {
+    const r = parseQuickAdd("File taxes every year on april 15", ctx);
+    expect(r.title).toBe("File taxes");
+    expect(r.rrule).toBe("FREQ=YEARLY");
+    expect(r.due).toEqual({ at: new Date("2027-04-14T16:00:00Z"), allDay: true });
+  });
+
+  it("starts at the date after 'starting'", () => {
+    const r = parseQuickAdd("Report every week starting tomorrow", ctx);
+    expect(r.title).toBe("Report");
+    expect(r.rrule).toBe("FREQ=WEEKLY");
+    expect(r.due).toEqual({ at: new Date("2026-10-20T16:00:00Z"), allDay: true });
+  });
+
+  it("combines 'from <weekday>' with a time", () => {
+    const r = parseQuickAdd("Standup every weekday from monday at 9am", ctx);
+    expect(r.title).toBe("Standup");
+    expect(r.rrule).toBe("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
+    expect(r.due).toEqual({ at: new Date("2026-10-26T01:00:00Z"), allDay: false });
+  });
+
+  it("keeps every weekday of a list that has a time in the middle", () => {
+    const r = parseQuickAdd("Backup every monday at 9am and friday", ctx);
+    expect(r.title).toBe("Backup");
+    expect(r.rrule).toBe("FREQ=WEEKLY;BYDAY=MO,FR");
+    expect(r.due).toEqual({ at: new Date("2026-10-23T01:00:00Z"), allDay: false });
+  });
+
+  it("leaves a word like 'on' alone when no date follows it", () => {
+    const r = parseQuickAdd("Check on the dog every day", ctx);
+    expect(r.title).toBe("Check on the dog");
+  });
+});
