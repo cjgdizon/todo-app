@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* Base tokens from DESIGN.md. The full set moves to packages/ui-tokens in M2. */
+:root {
+  --bg: #fafaf8;
+  --surface: #ffffff;
+  --border: #e6e5e0;
+  --text: #1f2421;
+  --text-muted: #5f655f;
+  --accent: #3f7d6b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121413;
+    --surface: #1a1d1b;
+    --border: #2a2e2b;
+    --text: #e8eae6;
+    --text-muted: #a1a8a1;
+    --accent: #6fb5a0;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

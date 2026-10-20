@@ -5,3 +5,6 @@ packages:
 # pnpm blocks dependency install scripts by default; esbuild (used by Vitest) is the only one we allow
 allowBuilds:
   esbuild: true
+  # Next.js defaults: image optimizer / lint resolver native builds stay blocked
+  sharp: false
+  unrs-resolver: false
