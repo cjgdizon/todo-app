@@ -36,3 +36,24 @@ export function fromFloating(floating: Date, zone: string): Date {
   if (!dt.isValid) throw new RangeError(`Invalid time zone or date: ${zone}`);
   return dt.toJSDate();
 }
+
+const DATE_TEXT = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_TEXT = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * The instant for a local calendar date (`YYYY-MM-DD`) and optional time (`HH:mm`)
+ * in `zone`; without a time it is the start of that day. A time that does not exist
+ * (spring-forward gap) moves forward. Returns null for text that is not a real
+ * date/time or for an unknown zone.
+ */
+export function localToInstant(date: string, time: string | null, zone: string): Date | null {
+  if (!DATE_TEXT.test(date) || (time !== null && !TIME_TEXT.test(time))) return null;
+  const dt = DateTime.fromISO(`${date}T${time ?? "00:00"}`, { zone });
+  return dt.isValid ? dt.toJSDate() : null;
+}
+
+/** The wall-clock date (`YYYY-MM-DD`) and time (`HH:mm`) of an instant in `zone`. */
+export function instantToLocal(instant: Date, zone: string): { date: string; time: string } {
+  const dt = zoned(instant, zone);
+  return { date: dt.toFormat("yyyy-MM-dd"), time: dt.toFormat("HH:mm") };
+}

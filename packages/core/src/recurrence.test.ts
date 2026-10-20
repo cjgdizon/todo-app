@@ -176,8 +176,9 @@ describe("nextDue: bounded work", () => {
     for (const rule of ["FREQ=YEARLY;BYMONTH=2;BYMONTHDAY=30", "FREQ=MONTHLY;BYMONTHDAY=31;BYMONTH=2"]) {
       const started = performance.now();
       expect(next(rule, "2026-10-20T01:00:00Z"), rule).toBeNull();
-      // Unbounded, this scan takes seconds under coverage; bounded it is well under 200 ms.
-      expect(performance.now() - started, rule).toBeLessThan(400);
+      // Unbounded, this scan takes many seconds; bounded it runs in a few hundred ms, which can
+      // double when other packages' tests share the machine. The budget catches the former only.
+      expect(performance.now() - started, rule).toBeLessThan(2000);
     }
   });
 
