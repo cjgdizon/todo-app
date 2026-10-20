@@ -11,5 +11,6 @@ coverage/
 .env
 .env.*
 !.env.example
+.claude/*.local.md
 supabase/.temp/
 supabase/.branches/
