@@ -157,6 +157,68 @@ test("a search can be saved as a filter, reopened, and deleted with undo", async
   await expect(page.getByRole("heading", { name: "Urgent", level: 1 })).toBeVisible();
 });
 
+test("selecting a range of tasks and changing their priority, with undo", async ({ page }) => {
+  await signUp(page);
+  for (const title of ["Alpha", "Beta", "Gamma"]) await addTask(page, title);
+
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Select: Alpha" }).click();
+  // Shift-click selects everything from Alpha down to Gamma.
+  await page.getByRole("checkbox", { name: "Select: Gamma" }).click({ modifiers: ["Shift"] });
+  await expect(page.getByText("3 selected")).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Set priority" }).selectOption("1");
+  await expect(page.getByText("Set 3 tasks to P1.")).toBeVisible();
+  await expect(taskRows(page).filter({ hasText: "P1" })).toHaveCount(3);
+  await expect(page.getByText("0 selected")).toBeVisible();
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(taskRows(page).filter({ hasText: "P1" })).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("toolbar", { name: "Bulk actions" })).toHaveCount(0);
+});
+
+test("bulk move, complete and delete each work and can be undone", async ({ page }) => {
+  await signUp(page);
+  for (const title of ["Alpha", "Beta", "Gamma"]) await addTask(page, title);
+
+  await page.getByRole("button", { name: "Add project" }).click();
+  await page.getByLabel("Project name").fill("Work");
+  await page.getByLabel("Project name").press("Enter");
+  await expect(page.getByRole("heading", { name: "Work", level: 1 })).toBeVisible();
+  await page.getByRole("link", { name: "Inbox" }).click();
+  await expect(taskRows(page)).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Select", exact: true }).click();
+  const pick = (title: string) => page.getByRole("checkbox", { name: `Select: ${title}` }).click();
+
+  // Move two tasks to the Work project.
+  await pick("Alpha");
+  await pick("Beta");
+  await page.getByRole("combobox", { name: "Move to project" }).selectOption({ label: "Work" });
+  await expect(page.getByText("Moved 2 tasks to Work.")).toBeVisible();
+  await expect(taskRows(page)).toHaveCount(1);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(taskRows(page)).toHaveCount(3);
+
+  // Complete one.
+  await pick("Gamma");
+  await page.getByRole("button", { name: "Complete", exact: true }).click();
+  await expect(page.getByText("1 task completed.")).toBeVisible();
+  await expect(taskRow(page, "Gamma")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(taskRow(page, "Gamma")).toBeVisible();
+
+  // Delete everything, then bring it back.
+  await page.getByRole("button", { name: "Select all" }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText("Deleted 3 tasks.")).toBeVisible();
+  await expect(taskRows(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(taskRows(page)).toHaveCount(3);
+});
+
 test("signing out protects the app", async ({ page }) => {
   await signUp(page);
   await page.getByRole("button", { name: "Sign out" }).click();

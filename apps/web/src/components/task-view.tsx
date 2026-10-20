@@ -13,6 +13,7 @@ import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalList
 import { CSS } from "@dnd-kit/utilities";
 import { compareTasks, planCompletion, type TaskNode } from "@todo/core";
 import {
+  useBulkActions,
   useCompleteTask,
   useData,
   useLabels,
@@ -20,13 +21,16 @@ import {
   useTasks,
   useTrashTask,
   useUpdateTask,
+  type BulkResult,
   type Task,
 } from "@todo/data";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { reorder } from "@/lib/reorder";
+import { toggleSelection } from "@/lib/selection";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { selectView, type View } from "@/lib/views";
+import { BulkBar } from "./bulk-bar";
 import { QuickAdd, type QuickAddDefaults } from "./quick-add";
 import { TaskRow } from "./task-row";
 import { useToast } from "./toast";
@@ -87,6 +91,63 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
   const labels = labelsQuery.data ?? [];
   const result = selectView(tasks, view, ctx, { projects, labels }, leaving);
 
+  // Selecting several tasks for a bulk action.
+  const bulk = useBulkActions();
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const anchor = useRef<string | null>(null);
+
+  const orderedIds: string[] = [];
+  const collect = (nodes: TaskNode<Task>[]) => {
+    for (const node of nodes) {
+      orderedIds.push(node.task.id);
+      collect(node.children);
+    }
+  };
+  for (const section of result.sections) collect(section.nodes);
+  // Only what is still on screen counts, in display order.
+  const pickedIds = orderedIds.filter((id) => picked.has(id));
+
+  const exitSelecting = () => {
+    setSelecting(false);
+    setPicked(new Set());
+    anchor.current = null;
+  };
+
+  useEffect(() => {
+    if (!selecting) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !document.querySelector("dialog[open]")) {
+        setSelecting(false);
+        setPicked(new Set());
+        anchor.current = null;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selecting]);
+
+  const tasksWord = (n: number) => (n === 1 ? "1 task" : `${n} tasks`);
+
+  async function runBulk(action: () => Promise<BulkResult>, describe: (result: BulkResult) => string) {
+    try {
+      const outcome = await action();
+      setPicked(new Set());
+      anchor.current = null;
+      if (outcome.count === 0) {
+        notify("Subtasks stay in their parent's project, so nothing was moved.");
+        return;
+      }
+      const left =
+        outcome.skipped > 0
+          ? ` ${outcome.skipped === 1 ? "1 subtask was" : `${outcome.skipped} subtasks were`} left in place.`
+          : "";
+      notify(describe(outcome) + left, { action: { label: "Undo", run: outcome.undo } });
+    } catch {
+      notify("Couldn't update those tasks. Try again.", { tone: "error" });
+    }
+  }
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -145,7 +206,7 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
     }
   }
 
-  const canReorder = view.kind === "inbox" || view.kind === "project";
+  const canReorder = (view.kind === "inbox" || view.kind === "project") && !selecting;
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -173,6 +234,19 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
       onDelete: (t: Task) => void onDelete(t),
       onMove: (t: Task, delta: -1 | 1) =>
         void moveWithinSiblings(t, (siblings, from) => Math.min(Math.max(from + delta, 0), siblings.length - 1)),
+      ...(selecting
+        ? {
+            select: {
+              checked: picked.has(node.task.id),
+              onToggle: (shift: boolean) => {
+                // Read the anchor now: the updater below runs after it has moved to this row.
+                const from = anchor.current;
+                setPicked((current) => toggleSelection(current, orderedIds, from, node.task.id, shift));
+                anchor.current = node.task.id;
+              },
+            },
+          }
+        : {}),
     };
     const subtasks =
       node.children.length > 0 ? (
@@ -199,10 +273,22 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
   const empty = result.sections.every((section) => section.nodes.length === 0);
 
   return (
-    <main className="mx-auto w-full max-w-[720px] px-4 py-8">
+    <main className={`mx-auto w-full max-w-[720px] px-4 py-8 ${selecting ? "pb-28" : ""}`}>
       <div className="mb-4 flex items-center justify-between gap-4">
         <h1 className="text-[20px] leading-7 font-semibold">{title}</h1>
-        {actions}
+        <div className="flex items-center gap-1">
+          {!empty && (
+            <button
+              type="button"
+              aria-pressed={selecting}
+              onClick={() => (selecting ? exitSelecting() : setSelecting(true))}
+              className={`rounded-sm px-2 py-1 text-sm ${selecting ? "bg-accent-subtle font-medium" : "text-accent-strong"}`}
+            >
+              Select
+            </button>
+          )}
+          {actions}
+        </div>
       </div>
 
       {view.kind === "search" ? <SearchBox query={view.query} /> : <QuickAdd defaults={defaults} />}
@@ -247,6 +333,28 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
             )}
           </section>
         ))
+      )}
+
+      {selecting && (
+        <BulkBar
+          count={pickedIds.length}
+          total={orderedIds.length}
+          projects={projects}
+          onSelectAll={() => setPicked(new Set(orderedIds))}
+          onClear={() => setPicked(new Set())}
+          onComplete={() =>
+            void runBulk(() => bulk.complete(pickedIds), (r) => `${tasksWord(r.count)} completed.`)
+          }
+          onPriority={(priority) =>
+            void runBulk(() => bulk.setPriority(pickedIds, priority), (r) => `Set ${tasksWord(r.count)} to P${priority}.`)
+          }
+          onMove={(projectId) => {
+            const target = projectId ? (projects.find((p) => p.id === projectId)?.name ?? "the project") : "Inbox";
+            void runBulk(() => bulk.move(pickedIds, projectId), (r) => `Moved ${tasksWord(r.count)} to ${target}.`);
+          }}
+          onDelete={() => void runBulk(() => bulk.trash(pickedIds), (r) => `Deleted ${tasksWord(r.count)}.`)}
+          onDone={exitSelecting}
+        />
       )}
     </main>
   );

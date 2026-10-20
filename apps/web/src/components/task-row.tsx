@@ -29,6 +29,8 @@ interface TaskRowProps {
   /** Alt+Up / Alt+Down: move one place among siblings. */
   onMove: (task: Task, delta: -1 | 1) => void;
   drag?: DragBindings;
+  /** Present while selecting several tasks; the row then shows a selection checkbox. */
+  select?: { checked: boolean; onToggle: (shiftKey: boolean) => void };
   /** Nested subtask list. */
   children?: ReactNode;
 }
@@ -50,6 +52,7 @@ export function TaskRow({
   onDelete,
   onMove,
   drag,
+  select,
   children,
 }: TaskRowProps) {
   const done = task.completedAt !== null;
@@ -70,9 +73,20 @@ export function TaskRow({
     >
       <div
         className={`flex items-start gap-3 rounded-md px-2 py-3 hover:bg-surface-subtle focus-within:bg-surface-subtle ${
-          selected ? "bg-accent-subtle hover:bg-accent-subtle" : ""
+          selected || select?.checked ? "bg-accent-subtle hover:bg-accent-subtle" : ""
         }`}
       >
+        {select ? (
+          <input
+            type="checkbox"
+            checked={select.checked}
+            aria-label={`Select: ${task.title}`}
+            // The click carries the Shift key; React needs onChange for a controlled checkbox.
+            onChange={() => undefined}
+            onClick={(event) => select.onToggle(event.shiftKey)}
+            className="mt-1 size-5 shrink-0 accent-accent"
+          />
+        ) : null}
         {drag ? (
           <button
             type="button"

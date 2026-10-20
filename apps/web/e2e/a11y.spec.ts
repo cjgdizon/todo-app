@@ -29,6 +29,13 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(taskRows(page)).toHaveCount(2);
       expect(await violations(page), "inbox with tasks").toEqual([]);
 
+      await page.getByRole("button", { name: "Select", exact: true }).click();
+      await page.getByRole("checkbox", { name: "Select: Plain task" }).click();
+      await expect(page.getByRole("toolbar", { name: "Bulk actions" })).toBeVisible();
+      expect(await violations(page), "selection mode with the bulk toolbar").toEqual([]);
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("toolbar", { name: "Bulk actions" })).toHaveCount(0);
+
       await openTask(page, "Plain task");
       expect(await violations(page), "task drawer").toEqual([]);
 
