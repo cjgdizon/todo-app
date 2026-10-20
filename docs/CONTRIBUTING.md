@@ -1,7 +1,7 @@
 # Contributing
 
 A to-do list app: React frontend (not built yet), Node/Express API, SQLite storage.
-Today only the API's "add a task" endpoint exists.
+Today the API can add, list, and complete tasks.
 
 ## Setup
 
@@ -46,6 +46,8 @@ There is no lint or build script yet.
 <!-- AUTO-GENERATED: server/src/tasks.routes.ts -->
 | Method | Path | Request body | Success | Errors |
 |--------|------|--------------|---------|--------|
+| GET | `/api/tasks` | none | `200` with an array of tasks, oldest first (`[]` when empty) | none |
+| POST | `/api/tasks/:id/complete` | none | `200` with the completed task (repeat calls are safe) | `400` id is not a positive integer, `404` no such task |
 | POST | `/api/tasks` | `{ "title": string }` (1 to 200 characters after trimming) | `201` with the created task | `400` invalid or empty title or malformed JSON, `413` body over 10 KB, `415` unsupported content encoding |
 <!-- /AUTO-GENERATED -->
 
