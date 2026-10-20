@@ -159,11 +159,24 @@ function tokenize(input: string): Token[] {
 // Parser (recursive descent): or > and (explicit or implicit) > not > atom
 // ---------------------------------------------------------------------------
 
+/** Matches the length cap on `saved_filters.query` in the database. */
+export const MAX_FILTER_LENGTH = 500;
+/** Deepest nesting of parentheses and negations, so hostile input cannot overflow the stack. */
+export const MAX_FILTER_DEPTH = 50;
+
 export function parseFilter(query: string): FilterNode {
+  if (query.length > MAX_FILTER_LENGTH) {
+    throw new FilterParseError(`Filter is too long (at most ${MAX_FILTER_LENGTH} characters)`, MAX_FILTER_LENGTH);
+  }
   const tokens = tokenize(query);
   if (tokens.length === 0) throw new FilterParseError("Filter is empty", 0);
 
   let index = 0;
+  let depth = 0;
+  const descend = (pos: number) => {
+    depth++;
+    if (depth > MAX_FILTER_DEPTH) throw new FilterParseError("Filter is nested too deeply", pos);
+  };
   const peek = (): Token | undefined => tokens[index];
   const endPos = query.length;
 
@@ -196,9 +209,13 @@ export function parseFilter(query: string): FilterNode {
   }
 
   function parseNot(): FilterNode {
-    if (peek()?.type === "not") {
+    const token = peek();
+    if (token?.type === "not") {
+      descend(token.pos);
       index++;
-      return { type: "not", node: parseNot() };
+      const node: FilterNode = { type: "not", node: parseNot() };
+      depth--;
+      return node;
     }
     return parseAtom();
   }
@@ -211,6 +228,7 @@ export function parseFilter(query: string): FilterNode {
       return token.node;
     }
     if (token.type === "lparen") {
+      descend(token.pos);
       index++;
       const inner = parseOr();
       const close = peek();
@@ -218,6 +236,7 @@ export function parseFilter(query: string): FilterNode {
         throw new FilterParseError('Missing closing ")"', close?.pos ?? endPos);
       }
       index++;
+      depth--;
       return inner;
     }
     throw new FilterParseError("Unexpected operator", token.pos);

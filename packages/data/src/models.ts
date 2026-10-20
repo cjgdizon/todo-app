@@ -43,6 +43,14 @@ export interface Label {
   color: string | null;
 }
 
+/** A search the user saved by name. Only the owner can see it (row-level security). */
+export interface SavedFilter {
+  id: string;
+  workspaceId: string;
+  name: string;
+  query: string;
+}
+
 export interface Profile {
   id: string;
   displayName: string;
@@ -135,6 +143,18 @@ const labelRow = z.object({
 export function parseLabel(row: unknown): Label {
   const r = labelRow.parse(row);
   return { id: r.id, workspaceId: r.workspace_id, name: r.name, color: r.color };
+}
+
+const savedFilterRow = z.object({
+  id,
+  workspace_id: id,
+  name: z.string().min(1),
+  query: z.string().min(1),
+});
+
+export function parseSavedFilter(row: unknown): SavedFilter {
+  const r = savedFilterRow.parse(row);
+  return { id: r.id, workspaceId: r.workspace_id, name: r.name, query: r.query };
 }
 
 const profileRow = z.object({

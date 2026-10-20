@@ -5,11 +5,13 @@ import {
   parseLabel,
   parseProfile,
   parseProject,
+  parseSavedFilter,
   parseTask,
   parseWorkspace,
   type Label,
   type Profile,
   type Project,
+  type SavedFilter,
   type Task,
   type Workspace,
 } from "./models.ts";
@@ -105,6 +107,49 @@ export async function fetchLabels(client: TodoClient, workspaceId: string): Prom
       .range(from, to),
   );
   return rows.map(parseLabel);
+}
+
+/** The signed-in user's saved filters (others' are hidden by row-level security). */
+export async function fetchSavedFilters(client: TodoClient, workspaceId: string): Promise<SavedFilter[]> {
+  const rows = await fetchAll((from, to) =>
+    client
+      .from("saved_filters")
+      .select("id,workspace_id,name,query")
+      .eq("workspace_id", workspaceId)
+      .is("deleted_at", null)
+      .order("name")
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(parseSavedFilter);
+}
+
+export async function insertSavedFilter(
+  client: TodoClient,
+  filter: { id: string; workspaceId: string; ownerId: string; name: string; query: string },
+): Promise<void> {
+  const { error } = await client.from("saved_filters").insert({
+    id: filter.id,
+    workspace_id: filter.workspaceId,
+    owner_id: filter.ownerId,
+    name: filter.name,
+    query: filter.query,
+  });
+  check(error);
+}
+
+export async function updateSavedFilter(
+  client: TodoClient,
+  id: string,
+  patch: { name?: string; query?: string; deletedAt?: Date | null },
+): Promise<void> {
+  const update: Database["public"]["Tables"]["saved_filters"]["Update"] = {};
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.query !== undefined) update.query = patch.query;
+  if (patch.deletedAt !== undefined) update.deleted_at = iso(patch.deletedAt);
+  if (Object.keys(update).length === 0) return;
+  const { error } = await client.from("saved_filters").update(update).eq("id", id);
+  check(error);
 }
 
 /** Every non-deleted task (open and completed) with its label ids. */

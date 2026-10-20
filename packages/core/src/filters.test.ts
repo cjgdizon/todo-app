@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { FilterParseError, matchesFilter, parseFilter, type FilterTask } from "./filters";
+import {
+  FilterParseError,
+  matchesFilter,
+  MAX_FILTER_DEPTH,
+  MAX_FILTER_LENGTH,
+  parseFilter,
+  type FilterTask,
+} from "./filters";
 
 // Tuesday 2026-10-20 18:00 in Manila (UTC+8). Local week is Mon Oct 19 - Sun Oct 25.
 const ctx = { now: new Date("2026-10-20T10:00:00Z"), timeZone: "Asia/Manila" };
@@ -139,5 +146,33 @@ describe("filters: errors", () => {
 
   it("rejects an unterminated quote", () => {
     expect(() => parseFilter('"buy milk')).toThrow(FilterParseError);
+  });
+});
+
+describe("filters: limits", () => {
+  it("accepts a query of exactly the maximum length", () => {
+    const query = `${"a".repeat(MAX_FILTER_LENGTH - 4)} & b`;
+    expect(query).toHaveLength(MAX_FILTER_LENGTH);
+    expect(() => parseFilter(query)).not.toThrow();
+  });
+
+  it("rejects a query longer than the saved-filter column allows", () => {
+    expect(() => parseFilter("a".repeat(MAX_FILTER_LENGTH + 1))).toThrow(/too long/);
+    expect(() => parseFilter("a".repeat(MAX_FILTER_LENGTH + 1))).toThrow(FilterParseError);
+  });
+
+  it("rejects deeply nested parentheses with a parse error, not a stack overflow", () => {
+    const query = `${"(".repeat(MAX_FILTER_DEPTH + 1)}p1${")".repeat(MAX_FILTER_DEPTH + 1)}`;
+    expect(() => parseFilter(query)).toThrow(/nested too deeply/);
+    expect(() => parseFilter(query)).toThrow(FilterParseError);
+  });
+
+  it("rejects a long chain of negations", () => {
+    expect(() => parseFilter(`${"!".repeat(MAX_FILTER_DEPTH + 1)}p1`)).toThrow(FilterParseError);
+  });
+
+  it("accepts nesting right up to the limit", () => {
+    const query = `${"(".repeat(MAX_FILTER_DEPTH)}p1${")".repeat(MAX_FILTER_DEPTH)}`;
+    expect(parseFilter(query)).toEqual({ type: "priority", value: 1 });
   });
 });

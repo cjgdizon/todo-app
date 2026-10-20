@@ -2,18 +2,21 @@ import { descendantIds, planCompletion, positionBetween } from "@todo/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
 import type { TodoClient } from "./client.ts";
-import type { Label, Project, Task } from "./models.ts";
+import type { Label, Project, SavedFilter, Task } from "./models.ts";
 import {
   fetchBootstrap,
   fetchLabels,
   fetchProjects,
+  fetchSavedFilters,
   fetchTasks,
   insertLabel,
   insertProject,
+  insertSavedFilter,
   insertTask,
   setTaskLabels,
   trashProject,
   updateProject,
+  updateSavedFilter,
   updateTask,
 } from "./queries.ts";
 import { applyTaskChange, type TaskChange } from "./taskPatch.ts";
@@ -45,6 +48,7 @@ export const queryKeys = {
   projects: (workspaceId: string) => ["projects", workspaceId] as const,
   labels: (workspaceId: string) => ["labels", workspaceId] as const,
   tasks: (workspaceId: string) => ["tasks", workspaceId] as const,
+  savedFilters: (workspaceId: string) => ["savedFilters", workspaceId] as const,
 };
 
 /** Profile and workspace for the signed-in user; load this before rendering the app shell. */
@@ -262,6 +266,70 @@ export function useTrashTask() {
       count: alsoIds.length + 1,
       undo: () => mutateAsync({ id: task.id, change: { deletedAt: null }, alsoIds }),
     };
+  };
+}
+
+export function useSavedFilters() {
+  const { client, workspaceId } = useData();
+  return useQuery({
+    queryKey: queryKeys.savedFilters(workspaceId),
+    queryFn: () => fetchSavedFilters(client, workspaceId),
+  });
+}
+
+/** Saves a search under a name. Resolves with the saved filter once the server has it. */
+export function useCreateSavedFilter() {
+  const { client, workspaceId, userId } = useData();
+  const queryClient = useQueryClient();
+  const key = queryKeys.savedFilters(workspaceId);
+
+  const mutation = useMutation({
+    mutationFn: (filter: SavedFilter) =>
+      insertSavedFilter(client, { id: filter.id, workspaceId, ownerId: userId, name: filter.name, query: filter.query }),
+    onMutate: async (filter) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<SavedFilter[]>(key);
+      queryClient.setQueryData<SavedFilter[]>(key, (filters) => [...(filters ?? []), filter]);
+      return { previous };
+    },
+    onError: (_error, _filter, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
+  return async (name: string, query: string): Promise<SavedFilter> => {
+    const filter: SavedFilter = { id: crypto.randomUUID(), workspaceId, name: name.trim(), query: query.trim() };
+    await mutation.mutateAsync(filter);
+    return filter;
+  };
+}
+
+/** Deletes (soft) a saved filter. The result's undo brings it back. */
+export function useDeleteSavedFilter() {
+  const { client, workspaceId } = useData();
+  const queryClient = useQueryClient();
+  const key = queryKeys.savedFilters(workspaceId);
+
+  const mutation = useMutation({
+    mutationFn: ({ id, deletedAt }: { id: string; deletedAt: Date | null }) =>
+      updateSavedFilter(client, id, { deletedAt }),
+    onMutate: async ({ id, deletedAt }) => {
+      if (deletedAt === null) return { previous: undefined };
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<SavedFilter[]>(key);
+      queryClient.setQueryData<SavedFilter[]>(key, (filters) => filters?.filter((f) => f.id !== id));
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: key }),
+  });
+
+  return async (filter: SavedFilter): Promise<{ undo: () => Promise<void> }> => {
+    await mutation.mutateAsync({ id: filter.id, deletedAt: new Date() });
+    return { undo: () => mutation.mutateAsync({ id: filter.id, deletedAt: null }) };
   };
 }
 

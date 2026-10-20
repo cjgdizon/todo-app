@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseLabel, parseProfile, parseProject, parseTask } from "./models.ts";
+import { parseLabel, parseProfile, parseProject, parseSavedFilter, parseTask } from "./models.ts";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
@@ -129,6 +129,29 @@ describe("parseProject, parseLabel, parseProfile", () => {
         version: 1,
       }),
     ).toEqual({ id: uuid(7), workspaceId: uuid(5), name: "bills", color: null });
+  });
+
+  it("maps a saved filter row", () => {
+    expect(
+      parseSavedFilter({
+        id: uuid(8),
+        workspace_id: uuid(5),
+        owner_id: uuid(9),
+        name: "Urgent work",
+        query: "p1 & #work",
+        deleted_at: null,
+        created_at: "2026-10-20T10:00:00+00:00",
+        updated_at: "2026-10-20T10:00:00+00:00",
+        updated_by: null,
+        version: 1,
+      }),
+    ).toEqual({ id: uuid(8), workspaceId: uuid(5), name: "Urgent work", query: "p1 & #work" });
+  });
+
+  it("rejects a saved filter with an empty query", () => {
+    expect(() =>
+      parseSavedFilter({ id: uuid(8), workspace_id: uuid(5), name: "Empty", query: "" }),
+    ).toThrow();
   });
 
   it("maps a profile row", () => {
