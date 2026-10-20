@@ -2,7 +2,7 @@
 
 import { useDeleteProject, useRenameProject, useTasks, type Project } from "@todo/data";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { useToast } from "./toast";
 
 const dialogClass =
@@ -10,6 +10,7 @@ const dialogClass =
 
 /** Rename and delete for a project. Both use native dialogs, which trap focus and restore it on close. */
 export function ProjectActions({ project }: { project: Project }) {
+  const renameId = useId();
   const router = useRouter();
   const rename = useRenameProject();
   const remove = useDeleteProject();
@@ -62,11 +63,11 @@ export function ProjectActions({ project }: { project: Project }) {
       <dialog ref={renameDialog} aria-label="Rename project" className={dialogClass}>
         <form onSubmit={onRename} className="flex flex-col gap-4">
           <div>
-            <label htmlFor="rename-project" className="mb-1 block text-sm font-medium">
+            <label htmlFor={renameId} className="mb-1 block text-sm font-medium">
               Project name
             </label>
             <input
-              id="rename-project"
+              id={renameId}
               autoFocus
               value={name}
               maxLength={100}

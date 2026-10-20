@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { TaskView } from "@/components/task-view";
 
+export const instant = false;
 export const metadata: Metadata = { title: "Inbox · Todo" };
 
 export default function InboxPage() {

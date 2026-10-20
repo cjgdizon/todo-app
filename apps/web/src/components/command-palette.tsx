@@ -4,7 +4,7 @@ import { useData, useLabels, useProjects, useTasks } from "@todo/data";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTaskSelection } from "@/lib/use-task-selection";
-import { QUICK_ADD_INPUT_ID } from "./quick-add";
+import { focusQuickAdd } from "./quick-add";
 import { useTheme } from "./theme-toggle";
 
 interface Item {
@@ -65,11 +65,9 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       label: "Add a task",
       hint: "Action",
       run: () => {
-        const input = document.getElementById(QUICK_ADD_INPUT_ID);
-        if (input) input.focus();
-        else {
+        if (!focusQuickAdd()) {
           router.push("/inbox");
-          window.setTimeout(() => document.getElementById(QUICK_ADD_INPUT_ID)?.focus(), 300);
+          window.setTimeout(focusQuickAdd, 300);
         }
       },
     },

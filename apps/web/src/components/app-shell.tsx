@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { CommandPalette } from "./command-palette";
 import { HashIcon, InboxIcon, MenuIcon, PlusIcon, SearchIcon, TagIcon, TodayIcon, UpcomingIcon } from "./icons";
-import { QUICK_ADD_INPUT_ID } from "./quick-add";
+import { focusQuickAdd } from "./quick-add";
 import { TaskDetail } from "./task-detail";
 import { ThemeToggle } from "./theme-toggle";
 import { useToast } from "./toast";
@@ -73,11 +73,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       if (event.key === "q") {
         event.preventDefault();
-        const input = document.getElementById(QUICK_ADD_INPUT_ID);
-        if (input) input.focus();
-        else {
+        if (!focusQuickAdd()) {
           router.push("/inbox");
-          window.setTimeout(() => document.getElementById(QUICK_ADD_INPUT_ID)?.focus(), 300);
+          window.setTimeout(focusQuickAdd, 300);
         }
       } else if (event.key === "/") {
         event.preventDefault();

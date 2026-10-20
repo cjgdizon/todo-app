@@ -2,7 +2,7 @@
 
 import { parseQuickAdd } from "@todo/core";
 import { taskInputFromQuickAdd, useCreateTask, useData, useLabels, useProjects } from "@todo/data";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { formatDue } from "@/lib/format";
 import { describeRecurrence } from "@/lib/recurrence-text";
 import { FlagIcon, HashIcon, PlusIcon, RepeatIcon, TagIcon, TodayIcon } from "./icons";
@@ -17,9 +17,20 @@ export interface QuickAddDefaults {
   dueToday: boolean;
 }
 
-export const QUICK_ADD_INPUT_ID = "quick-add-input";
+/**
+ * Focuses the quick-add box on the page the user is looking at. Pages visited earlier stay
+ * mounted but hidden, so an element id would not be unique; pick the visible input instead.
+ */
+export function focusQuickAdd(): boolean {
+  const inputs = document.querySelectorAll<HTMLInputElement>("[data-quick-add]");
+  const visible = [...inputs].find((input) => input.checkVisibility());
+  visible?.focus();
+  return visible !== undefined;
+}
 
 export function QuickAdd({ defaults }: { defaults: QuickAddDefaults }) {
+  const inputId = useId();
+  const previewId = useId();
   const { timeZone } = useData();
   const projects = useProjects();
   const labels = useLabels();
@@ -97,16 +108,17 @@ export function QuickAdd({ defaults }: { defaults: QuickAddDefaults }) {
   return (
     <form onSubmit={onSubmit} className="mb-4">
       <div className="flex gap-2">
-        <label htmlFor={QUICK_ADD_INPUT_ID} className="sr-only">
+        <label htmlFor={inputId} className="sr-only">
           Add a task
         </label>
         <input
-          id={QUICK_ADD_INPUT_ID}
+          id={inputId}
+          data-quick-add
           type="text"
           autoComplete="off"
           value={text}
           onChange={(event) => setText(event.target.value)}
-          aria-describedby="quick-add-preview"
+          aria-describedby={previewId}
           placeholder="Add a task, e.g. Pay rent every 1st at 9am #home p2"
           className="min-w-0 flex-1 rounded-md border border-border bg-surface-subtle px-3 py-2 text-base placeholder:text-text-muted"
         />
@@ -120,7 +132,8 @@ export function QuickAdd({ defaults }: { defaults: QuickAddDefaults }) {
         </button>
       </div>
       <p
-        id="quick-add-preview"
+        id={previewId}
+        data-quick-add-preview
         aria-live="polite"
         className="mt-2 flex min-h-5 flex-wrap gap-x-3 gap-y-1 text-sm text-text-muted"
       >

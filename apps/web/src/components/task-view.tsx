@@ -23,7 +23,7 @@ import {
   type Task,
 } from "@todo/data";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { reorder } from "@/lib/reorder";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { selectView, type View } from "@/lib/views";
@@ -270,6 +270,7 @@ function SortableRow(props: RowProps) {
 }
 
 function SearchBox({ query }: { query: string }) {
+  const inputId = useId();
   const router = useRouter();
   const params = useSearchParams();
   const [text, setText] = useState(query);
@@ -284,11 +285,11 @@ function SearchBox({ query }: { query: string }) {
 
   return (
     <div className="mb-4">
-      <label htmlFor="search-input" className="sr-only">
+      <label htmlFor={inputId} className="sr-only">
         Search tasks
       </label>
       <input
-        id="search-input"
+        id={inputId}
         type="search"
         autoComplete="off"
         value={text}
