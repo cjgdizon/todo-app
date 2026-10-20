@@ -1,12 +1,30 @@
 "use client";
 
 import { dueBucket } from "@todo/core";
-import { useCreateProject, useData, useLabels, useNewProject, useProjects, useTasks } from "@todo/data";
+import {
+  useCreateProject,
+  useData,
+  useLabels,
+  useNewProject,
+  useProjects,
+  useSavedFilters,
+  useTasks,
+} from "@todo/data";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { CommandPalette } from "./command-palette";
-import { HashIcon, InboxIcon, MenuIcon, PlusIcon, SearchIcon, TagIcon, TodayIcon, UpcomingIcon } from "./icons";
+import {
+  FilterIcon,
+  HashIcon,
+  InboxIcon,
+  MenuIcon,
+  PlusIcon,
+  SearchIcon,
+  TagIcon,
+  TodayIcon,
+  UpcomingIcon,
+} from "./icons";
 import { focusQuickAdd } from "./quick-add";
 import { TaskDetail } from "./task-detail";
 import { ThemeToggle } from "./theme-toggle";
@@ -43,6 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const tasks = useTasks().data ?? [];
   const projects = useProjects().data ?? [];
   const labels = useLabels().data ?? [];
+  const savedFilters = useSavedFilters().data ?? [];
   const createProject = useCreateProject();
   const newProject = useNewProject();
   const { notify } = useToast();
@@ -184,6 +203,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
+
+        {savedFilters.length > 0 && (
+          <nav aria-label="Filters" onClick={() => setMenuOpen(false)} className="flex flex-col gap-1">
+            <h2 className="px-3 text-sm font-medium text-text-muted">Filters</h2>
+            {savedFilters.map((filter) => (
+              <NavLink key={filter.id} href={`/filter/${filter.id}`} icon={<FilterIcon />}>
+                {filter.name}
+              </NavLink>
+            ))}
+          </nav>
+        )}
 
         {labels.length > 0 && (
           <nav aria-label="Labels" onClick={() => setMenuOpen(false)} className="flex flex-col gap-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useData, useLabels, useProjects, useTasks } from "@todo/data";
+import { useData, useLabels, useProjects, useSavedFilters, useTasks } from "@todo/data";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTaskSelection } from "@/lib/use-task-selection";
@@ -47,6 +47,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
   const { client } = useData();
   const projects = useProjects().data ?? [];
   const labels = useLabels().data ?? [];
+  const savedFilters = useSavedFilters().data ?? [];
   const tasks = useTasks().data ?? [];
   const selection = useTaskSelection();
   const theme = useTheme();
@@ -76,6 +77,12 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       label: `Go to #${p.name}`,
       hint: "Project",
       run: go(`/project/${p.id}`),
+    })),
+    ...savedFilters.map((f) => ({
+      id: `filter-${f.id}`,
+      label: `Go to filter ${f.name}`,
+      hint: "Filter",
+      run: go(`/filter/${f.id}`),
     })),
     ...labels.map((l) => ({
       id: `label-${l.id}`,

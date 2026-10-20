@@ -1,8 +1,9 @@
 "use client";
 
-import { useLabels, useProjects } from "@todo/data";
+import { useLabels, useProjects, useSavedFilters } from "@todo/data";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { DeleteFilterButton, SaveFilterButton } from "./filter-actions";
 import { ProjectActions } from "./project-actions";
 import { TaskView } from "./task-view";
 
@@ -50,7 +51,21 @@ export function LabelScreen({ id }: { id: string }) {
   return <TaskView view={{ kind: "label", id }} title={`@${label.name}`} />;
 }
 
+export function FilterScreen({ id }: { id: string }) {
+  const filters = useSavedFilters();
+  const filter = filters.data?.find((f) => f.id === id);
+  if (filters.isPending) return <Pending />;
+  if (!filter) return <Missing what="filter" />;
+  return (
+    <TaskView
+      view={{ kind: "filter", query: filter.query }}
+      title={filter.name}
+      actions={<DeleteFilterButton key={filter.id} filter={filter} />}
+    />
+  );
+}
+
 export function SearchScreen() {
   const query = useSearchParams().get("q") ?? "";
-  return <TaskView view={{ kind: "search", query }} title="Search" />;
+  return <TaskView view={{ kind: "search", query }} title="Search" actions={<SaveFilterButton query={query} />} />;
 }

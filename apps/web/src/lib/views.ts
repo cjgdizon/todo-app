@@ -19,7 +19,9 @@ export type View =
   | { kind: "upcoming" }
   | { kind: "project"; id: string }
   | { kind: "label"; id: string }
-  | { kind: "search"; query: string };
+  | { kind: "search"; query: string }
+  /** A saved search: the same query language, opened from the sidebar. */
+  | { kind: "filter"; query: string };
 
 export interface ViewSection {
   key: string;
@@ -93,7 +95,8 @@ export function selectView(
         error: null,
       };
 
-    case "search": {
+    case "search":
+    case "filter": {
       if (view.query.trim() === "") return { sections: [], error: null };
       try {
         const filter = parseFilter(view.query);

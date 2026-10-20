@@ -48,6 +48,7 @@ const EMPTY: Record<View["kind"], string> = {
   project: "No tasks in this project yet.",
   label: "No tasks with this label.",
   search: "No tasks match.",
+  filter: "No tasks match this filter.",
 };
 
 const FADE_OUT_MS = 800;

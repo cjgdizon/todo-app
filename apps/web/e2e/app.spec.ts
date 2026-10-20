@@ -122,6 +122,41 @@ test("the command palette navigates", async ({ page }) => {
   await expect(palette).toBeHidden();
 });
 
+test("a search can be saved as a filter, reopened, and deleted with undo", async ({ page }) => {
+  await signUp(page);
+  await addTask(page, "Urgent thing p1");
+  await addTask(page, "Calm thing");
+
+  await page.getByRole("link", { name: "Search", exact: true }).click();
+  await page.getByRole("searchbox", { name: "Search tasks" }).fill("p1");
+  await expect(taskRow(page, "Urgent thing")).toBeVisible();
+  await expect(taskRow(page, "Calm thing")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Save filter" }).click();
+  const dialog = page.getByRole("dialog", { name: "Save filter" });
+  await dialog.getByLabel("Filter name").fill("Urgent");
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
+
+  await expect(page).toHaveURL(/\/filter\//);
+  await expect(page.getByRole("heading", { name: "Urgent", level: 1 })).toBeVisible();
+  await expect(taskRow(page, "Urgent thing")).toBeVisible();
+  await expect(taskRow(page, "Calm thing")).toHaveCount(0);
+  const sidebarFilters = page.getByRole("navigation", { name: "Filters" });
+  await expect(sidebarFilters.getByRole("link", { name: "Urgent" })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Urgent", level: 1 })).toBeVisible();
+  await expect(taskRow(page, "Urgent thing")).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page).toHaveURL(/\/search/);
+  await expect(sidebarFilters).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page).toHaveURL(/\/filter\//);
+  await expect(page.getByRole("heading", { name: "Urgent", level: 1 })).toBeVisible();
+});
+
 test("signing out protects the app", async ({ page }) => {
   await signUp(page);
   await page.getByRole("button", { name: "Sign out" }).click();

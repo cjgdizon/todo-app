@@ -47,6 +47,11 @@ export const SearchIcon = (p: IconProps) => (
     <path d="M20 20l-4.2-4.2" />
   </Icon>
 );
+export const FilterIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 5h16l-6 7v6l-4 2v-8z" />
+  </Icon>
+);
 export const HashIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M5 9h15M4 15h15M10 4L8 20M16 4l-2 16" />

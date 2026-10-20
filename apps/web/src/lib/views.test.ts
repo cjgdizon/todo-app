@@ -134,6 +134,17 @@ describe("selectView: label and search", () => {
     expect(result.error).toMatch(/.+/);
   });
 
+  it("applies a saved filter's query like a search", () => {
+    const result = run(tasks, { kind: "filter", query: "#home | @bills" });
+    expect(titles(result.sections[0]?.nodes ?? [])).toEqual(["Pay rent", "Pay electricity"]);
+  });
+
+  it("reports an unreadable saved filter instead of throwing", () => {
+    const result = run(tasks, { kind: "filter", query: "(p1 &" });
+    expect(result.sections).toEqual([]);
+    expect(result.error).toMatch(/.+/);
+  });
+
   it("shows nothing for an empty search", () => {
     const result = run(tasks, { kind: "search", query: "   " });
     expect(result).toEqual({ sections: [], error: null });
