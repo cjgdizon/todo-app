@@ -20,9 +20,16 @@ if (host !== "127.0.0.1" && host !== "localhost") {
 
 const PORT = 3000;
 
+// CI builds the app first and serves it with `next start`: dev mode compiles each route on first
+// visit, which is slow on a cold runner. Locally the default is the dev server.
+const serverCommand =
+  process.env.E2E_SERVER === "start"
+    ? `node node_modules/next/dist/bin/next start -p ${PORT}`
+    : `node node_modules/next/dist/bin/next dev -p ${PORT}`;
+
 export default defineConfig({
   testDir: "./e2e",
-  // One worker: the specs share one dev server and one local database.
+  // One worker: the specs share one server and one local database.
   workers: 1,
   timeout: 60_000,
   expect: { timeout: 10_000 },
@@ -33,9 +40,11 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: `node node_modules/next/dist/bin/next dev -p ${PORT}`,
+    command: serverCommand,
     url: `http://localhost:${PORT}/login`,
-    reuseExistingServer: true,
+    // Never reuse a server that is already running: the guard above only sees this process's
+    // environment, and a running production build may have a different Supabase address baked in.
+    reuseExistingServer: false,
     timeout: 120_000,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,

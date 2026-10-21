@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addTask, createProject, openTask, quickAdd, signUp, taskRow, taskRows } from "./helpers";
+import { addTask, createProject, openTask, quickAdd, reloadWhenSaved, signUp, taskRow, taskRows } from "./helpers";
 
 test("sign up, add a task, complete it and undo", async ({ page }) => {
   await signUp(page);
@@ -20,7 +20,7 @@ test("tasks survive a reload", async ({ page }) => {
   await addTask(page, "Water the plants");
   await expect(taskRow(page, "Water the plants")).toBeVisible();
 
-  await page.reload();
+  await reloadWhenSaved(page);
   await expect(taskRow(page, "Water the plants")).toBeVisible();
 });
 
@@ -69,12 +69,23 @@ test("edits in the task drawer are saved", async ({ page }) => {
   await openTask(page, "Draft report");
 
   const drawer = page.getByRole("dialog", { name: "Task details" });
+  // Wait for each save to reach the server before reloading, or the reload would cancel it.
+  const saved = (text: string) =>
+    page.waitForResponse(
+      (response) => response.request().method() === "PATCH" && (response.request().postData() ?? "").includes(text),
+    );
+
+  const prioritySaved = saved('"priority":1');
   await drawer.getByLabel("Priority").selectOption("1");
+  await prioritySaved;
+
   await drawer.getByLabel("Notes").fill("Include the Q3 numbers");
+  const notesSaved = saved("Include the Q3 numbers");
   await drawer.getByLabel("Title").focus(); // leaving the notes field saves them
+  await notesSaved;
   await expect(taskRow(page, "Draft report")).toContainText("P1");
 
-  await page.reload();
+  await reloadWhenSaved(page);
   const reopened = page.getByRole("dialog", { name: "Task details" });
   await expect(reopened.getByLabel("Priority")).toHaveValue("1");
   await expect(reopened.getByLabel("Notes")).toHaveValue("Include the Q3 numbers");
@@ -105,7 +116,7 @@ test("Alt+Arrow reorders tasks from the keyboard", async ({ page }) => {
   await page.keyboard.press("Alt+ArrowUp");
   await expect(taskRows(page).first()).toContainText("Second");
 
-  await page.reload();
+  await reloadWhenSaved(page);
   await expect(taskRows(page).first()).toContainText("Second");
 });
 
@@ -144,7 +155,7 @@ test("a search can be saved as a filter, reopened, and deleted with undo", async
   const sidebarFilters = page.getByRole("navigation", { name: "Filters" });
   await expect(sidebarFilters.getByRole("link", { name: "Urgent" })).toBeVisible();
 
-  await page.reload();
+  await reloadWhenSaved(page);
   await expect(page.getByRole("heading", { name: "Urgent", level: 1 })).toBeVisible();
   await expect(taskRow(page, "Urgent thing")).toBeVisible();
 
@@ -258,7 +269,7 @@ test("the calendar shows a task on its day, and dragging reschedules it", async 
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(todayCell.getByRole("button", { name: /Dentist/ })).toBeVisible();
 
-  await page.reload();
+  await reloadWhenSaved(page);
   await expect(page.locator(`td[data-day="${localToday()}"]`).getByRole("button", { name: /Dentist/ })).toBeVisible();
 });
 
@@ -306,7 +317,7 @@ test("a project board has sections, and cards move between them", async ({ page 
   await expect(none.getByRole("button", { name: "Write spec", exact: true })).toHaveCount(0);
 
   // The move is saved.
-  await page.reload();
+  await reloadWhenSaved(page);
   await expect(
     page.getByRole("region", { name: "Doing" }).getByRole("button", { name: "Write spec", exact: true }),
   ).toBeVisible();
@@ -359,7 +370,7 @@ test("moving a task to another project clears its board column", async ({ page }
 
   await page.getByRole("link", { name: "Inbox" }).click();
   await expect(taskRow(page, "Carry me")).toBeVisible();
-  await page.reload();
+  await reloadWhenSaved(page);
   await expect(taskRow(page, "Carry me")).toBeVisible();
 });
 

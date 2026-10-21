@@ -1,0 +1,77 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Drives the real app in a browser against a throwaway local Supabase (Docker is preinstalled on
+  # the runner). It signs up its own test users and refuses to run against anything but localhost.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install pnpm (version pinned in package.json)
+        run: npm install -g pnpm@12.14.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase (applies every migration)
+        # Image downloads from the public registry are sometimes rate limited, so try a few times.
+        run: |
+          for attempt in 1 2 3; do
+            pnpm db:start && exit 0
+            echo "Supabase did not start (attempt $attempt of 3)"
+            pnpm exec supabase stop --no-backup || true
+            sleep 20
+          done
+          exit 1
+
+      - name: Point the web app at it
+        run: |
+          pnpm exec supabase status -o json > "$RUNNER_TEMP/supabase-status.json"
+          node <<'NODE'
+          const fs = require("node:fs");
+          const status = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + "/supabase-status.json", "utf8"));
+          // The local stack's keys are the same public demo values on every machine; nothing private.
+          const lines = [
+            "NEXT_PUBLIC_SUPABASE_URL=" + status.API_URL,
+            "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=" + status.PUBLISHABLE_KEY,
+          ].join("\n") + "\n";
+          // Later steps (the build and the tests) read these from the environment.
+          fs.appendFileSync(process.env.GITHUB_ENV, lines);
+          NODE
+
+      - name: Build the web app
+        run: pnpm --filter @todo/web build
+
+      - name: Install Chromium
+        run: pnpm --filter @todo/web exec playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: pnpm --filter @todo/web e2e
+        env:
+          E2E_SERVER: start
+
+      - name: Keep the traces of a failed run
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: apps/web/test-results
+          retention-days: 7
