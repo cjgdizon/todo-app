@@ -22,6 +22,16 @@ for (const scheme of ["light", "dark"] as const) {
       expect(await violations(page)).toEqual([]);
     });
 
+    test("the offline notice has no accessibility violations", async ({ page }) => {
+      await signUp(page);
+      await addTask(page, "Kept for later");
+      await page.context().setOffline(true);
+      await addTask(page, "Written offline");
+      await expect(page.getByText(/waiting to sync/)).toBeVisible();
+      expect(await violations(page)).toEqual([]);
+      await page.context().setOffline(false);
+    });
+
     test("the settings page, with an import preview open, has no accessibility violations", async ({ page }) => {
       await signUp(page);
       await page.getByRole("link", { name: "Settings (import and export)" }).click();

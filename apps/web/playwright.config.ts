@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // `pnpm e2e` runs from apps/web. The dev env file points the app at local Supabase.
@@ -16,6 +16,23 @@ if (host !== "127.0.0.1" && host !== "localhost") {
     "The e2e tests create users and only run against local Supabase. " +
       "Start it with `pnpm db:start` and keep apps/web/.env.development.local pointing at it.",
   );
+}
+
+// A production build has the Supabase address baked in when it is built (from .env.local, which
+// may point at the hosted project), so the check above cannot see it. Check the build itself.
+if (process.env.E2E_SERVER === "start") {
+  const built = join(process.cwd(), ".next", "static");
+  const bakedIn =
+    existsSync(built) &&
+    (readdirSync(built, { recursive: true, encoding: "utf8" }) as string[])
+      .filter((file) => file.endsWith(".js"))
+      .some((file) => readFileSync(join(built, file), "utf8").includes(supabaseUrl));
+  if (!bakedIn) {
+    throw new Error(
+      "The production build does not point at local Supabase, so the tests would sign up users " +
+        "elsewhere. Build it with `pnpm --filter @todo/web build:e2e` first.",
+    );
+  }
 }
 
 const PORT = 3000;

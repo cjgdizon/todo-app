@@ -72,6 +72,14 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
 
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes ?? "");
+  // The task can change under the open drawer (restored from the saved cache, then refreshed; or edited
+  // on another device). A field the user has not touched follows the new value; one being edited stays.
+  const [synced, setSynced] = useState({ title: task.title, notes: task.notes ?? "" });
+  if (synced.title !== task.title || synced.notes !== (task.notes ?? "")) {
+    if (title === synced.title) setTitle(task.title);
+    if (notes === synced.notes) setNotes(task.notes ?? "");
+    setSynced({ title: task.title, notes: task.notes ?? "" });
+  }
   const [subtaskTitle, setSubtaskTitle] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
 

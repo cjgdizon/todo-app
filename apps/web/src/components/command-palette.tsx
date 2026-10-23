@@ -3,6 +3,7 @@
 import { useData, useLabels, useProjects, useSavedFilters, useTasks } from "@todo/data";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { signOut } from "@/lib/offline";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { focusQuickAdd } from "./quick-add";
 import { useTheme } from "./theme-toggle";
@@ -93,7 +94,7 @@ function PaletteBody({ onClose }: { onClose: () => void }) {
       run: go(`/label/${l.id}`),
     })),
     { id: "theme", label: `Switch theme (now ${theme.label})`, hint: "Action", run: theme.cycle },
-    { id: "sign-out", label: "Sign out", hint: "Action", run: () => void client.auth.signOut() },
+    { id: "sign-out", label: "Sign out", hint: "Action", run: () => void signOut(client) },
   ];
 
   const needle = query.trim().toLowerCase();

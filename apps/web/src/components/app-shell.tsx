@@ -26,7 +26,9 @@ import {
   TodayIcon,
   UpcomingIcon,
 } from "./icons";
+import { signOut } from "@/lib/offline";
 import { focusQuickAdd } from "./quick-add";
+import { SyncStatus } from "./sync-status";
 import { TaskDetail } from "./task-detail";
 import { ThemeToggle } from "./theme-toggle";
 import { useToast } from "./toast";
@@ -243,7 +245,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ThemeToggle />
           <button
             type="button"
-            onClick={() => void client.auth.signOut()}
+            onClick={() => void signOut(client)}
             className="rounded-sm px-2 py-1 text-left text-sm text-text-muted"
           >
             Sign out
@@ -264,6 +266,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <span className="font-semibold">Todo</span>
         </header>
+        <SyncStatus />
         {children}
       </div>
 
