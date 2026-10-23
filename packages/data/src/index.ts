@@ -8,3 +8,4 @@ export type { ImportProgress, ImportResult } from "./import-apply.ts";
 export { applyTaskChange, type TaskChange } from "./taskPatch.ts";
 export { importContextFrom, toExchangeData } from "./transfer.ts";
 export { positionAtEnd, taskInputFromQuickAdd, type TaskInput } from "./taskInput.ts";
+export { createOfflineFetch, type OfflineFetch, type OfflineState, type RejectedWrite } from "./offline-fetch.ts";
