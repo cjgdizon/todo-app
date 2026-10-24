@@ -1,0 +1,27 @@
+# Core flow on a real build: sign in, add a task, complete it.
+# Run against a TEST account on local or staging Supabase (never the hosted project):
+#   maestro test -e EMAIL=test@example.com -e PASSWORD=... .maestro/smoke.yaml
+appId: com.cjgdizon.todo
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Sign in"
+- tapOn: "Email"
+- inputText: ${EMAIL}
+- tapOn: "Password"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- tapOn:
+    id: "sign-in-submit"
+- extendedWaitUntil:
+    visible: "Inbox"
+    timeout: 20000
+- tapOn:
+    id: "quick-add-input"
+- inputText: "Maestro smoke task"
+- tapOn:
+    id: "quick-add-submit"
+- assertVisible: "Maestro smoke task"
+- tapOn: "Complete: Maestro smoke task"
+- assertVisible: "Task completed."
+- assertNotVisible: "Maestro smoke task"

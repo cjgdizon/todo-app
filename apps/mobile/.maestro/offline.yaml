@@ -1,0 +1,25 @@
+# An edit made in airplane mode is kept and saved when the connection returns (Android).
+# Needs an already signed-in test account; run after smoke.yaml:
+#   maestro test .maestro/offline.yaml
+appId: com.cjgdizon.todo
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "Inbox"
+    timeout: 20000
+- toggleAirplaneMode
+- extendedWaitUntil:
+    visible: "You're offline.*"
+    timeout: 10000
+- tapOn:
+    id: "quick-add-input"
+- inputText: "Written offline"
+- tapOn:
+    id: "quick-add-submit"
+- assertVisible: "Written offline"
+- assertVisible: ".*waiting to sync.*"
+- toggleAirplaneMode
+- extendedWaitUntil:
+    notVisible: ".*waiting to sync.*"
+    timeout: 30000
+- assertVisible: "Written offline"
