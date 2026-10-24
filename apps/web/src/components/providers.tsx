@@ -4,12 +4,18 @@ import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type PersistedClient } from "@tanstack/react-query-persist-client";
-import { DataContext, updateProfileTimeZone, useBootstrap, type TodoClient } from "@todo/data";
+import {
+  DataContext,
+  deserializeCache,
+  serializeCache,
+  updateProfileTimeZone,
+  useBootstrap,
+  type TodoClient,
+} from "@todo/data";
 import { del, get, set } from "idb-keyval";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { getOfflineQueue, onRejectedWrite, onWriteConflict } from "@/lib/offline";
-import { deserializeCache, serializeCache } from "@/lib/persist-codec";
 import { useRealtimeSync } from "@/lib/realtime";
 import { createClient } from "@/lib/supabase/client";
 import { RegisterServiceWorker } from "./register-service-worker";

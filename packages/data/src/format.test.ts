@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDue } from "./format";
+import { formatDue } from "./format.ts";
 
 // Tuesday 2026-10-20 18:00 in Manila (UTC+8).
 const ctx = { now: new Date("2026-10-20T10:00:00Z"), timeZone: "Asia/Manila" };

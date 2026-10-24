@@ -263,6 +263,30 @@ export type Database = {
         }
         Relationships: []
       }
+      push_tokens: {
+        Row: {
+          created_at: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          platform: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       projects: {
         Row: {
           archived_at: string | null
@@ -851,8 +875,16 @@ export type Database = {
         Args: { project: string; target_ws: string }
         Returns: undefined
       }
+      register_push_token: {
+        Args: { p_platform: string; p_token: string }
+        Returns: undefined
+      }
       transfer_workspace: {
         Args: { new_owner: string; ws: string }
+        Returns: undefined
+      }
+      unregister_push_token: {
+        Args: { p_token: string }
         Returns: undefined
       }
     }

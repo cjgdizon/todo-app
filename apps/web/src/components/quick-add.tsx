@@ -3,8 +3,8 @@
 import { parseQuickAdd } from "@todo/core";
 import { taskInputFromQuickAdd, useCreateTask, useData, useLabels, useProjects } from "@todo/data";
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { formatDue } from "@/lib/format";
-import { describeRecurrence } from "@/lib/recurrence-text";
+import { formatDue } from "@todo/data";
+import { describeRecurrence } from "@todo/data";
 import { FlagIcon, HashIcon, PlusIcon, RepeatIcon, TagIcon, TodayIcon } from "./icons";
 import { useToast } from "./toast";
 

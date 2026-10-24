@@ -9,3 +9,4 @@ export * from "./recurrence.ts";
 export * from "./task.ts";
 export * from "./views.ts";
 export { instantToLocal, localToInstant } from "./zoned.ts";
+export * from "./snooze.ts";

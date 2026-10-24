@@ -1,6 +1,6 @@
-import type { Label, Project, Task } from "@todo/data";
+import type { Label, Project, Task } from "./models.ts";
 import { describe, expect, it } from "vitest";
-import { selectView } from "./views";
+import { selectView } from "./views.ts";
 
 // Tuesday 2026-10-20 18:00 in Manila (UTC+8).
 const ctx = { now: new Date("2026-10-20T10:00:00Z"), timeZone: "Asia/Manila" };

@@ -9,3 +9,7 @@ export { applyTaskChange, type TaskChange } from "./taskPatch.ts";
 export { importContextFrom, toExchangeData } from "./transfer.ts";
 export { positionAtEnd, taskInputFromQuickAdd, type TaskInput } from "./taskInput.ts";
 export { createOfflineFetch, type OfflineFetch, type OfflineState, type RejectedWrite } from "./offline-fetch.ts";
+export * from "./format.ts";
+export * from "./recurrence-text.ts";
+export * from "./views.ts";
+export * from "./persist-codec.ts";

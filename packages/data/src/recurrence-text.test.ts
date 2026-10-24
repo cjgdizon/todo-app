@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeRecurrence, presetRule, PRESETS } from "./recurrence-text";
+import { describeRecurrence, presetRule, PRESETS } from "./recurrence-text.ts";
 
 describe("describeRecurrence", () => {
   it.each([

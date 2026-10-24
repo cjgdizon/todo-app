@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deserializeCache, serializeCache } from "./persist-codec";
+import { deserializeCache, serializeCache } from "./persist-codec.ts";
 
 describe("saved cache codec", () => {
   it("brings dates back as dates, wherever they sit", () => {

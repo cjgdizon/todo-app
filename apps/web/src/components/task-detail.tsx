@@ -15,7 +15,7 @@ import {
   type TaskChange,
 } from "@todo/data";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
-import { describeRecurrence, presetFor, presetRule, PRESETS, type PresetValue } from "@/lib/recurrence-text";
+import { describeRecurrence, presetFor, presetRule, PRESETS, type PresetValue } from "@todo/data";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { CheckIcon, CloseIcon, SubtaskIcon, TrashIcon } from "./icons";
 import { useToast } from "./toast";

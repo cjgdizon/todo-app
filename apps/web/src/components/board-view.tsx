@@ -25,7 +25,7 @@ import {
 } from "@todo/data";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { boardColumns, columnDropId, dropTarget, positionInColumn, type BoardColumn } from "@/lib/board";
-import { formatDue } from "@/lib/format";
+import { formatDue } from "@todo/data";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { CheckIcon, ClockIcon, DragIcon, FlagIcon } from "./icons";
 import { QuickAdd } from "./quick-add";

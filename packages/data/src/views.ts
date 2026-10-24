@@ -9,8 +9,8 @@ import {
   type TaskNode,
   type ViewContext,
 } from "@todo/core";
-import type { Label, Project, Task } from "@todo/data";
-import { formatDue } from "./format";
+import type { Label, Project, Task } from "./models.ts";
+import { formatDue } from "./format.ts";
 
 /** What a list screen shows. Smart views are computed from the full task list. */
 export type View =

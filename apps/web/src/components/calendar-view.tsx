@@ -13,7 +13,7 @@ import {
 } from "@todo/core";
 import { useData, useTasks, useUpdateTask, type Task } from "@todo/data";
 import { useState } from "react";
-import { formatDue } from "@/lib/format";
+import { formatDue } from "@todo/data";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { useToast } from "./toast";
 

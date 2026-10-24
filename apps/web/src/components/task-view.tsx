@@ -29,7 +29,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { reorder } from "@/lib/reorder";
 import { toggleSelection } from "@/lib/selection";
 import { useTaskSelection } from "@/lib/use-task-selection";
-import { selectView, type View } from "@/lib/views";
+import { selectView, type View } from "@todo/data";
 import { BulkBar } from "./bulk-bar";
 import { QuickAdd, type QuickAddDefaults } from "./quick-add";
 import { TaskRow } from "./task-row";

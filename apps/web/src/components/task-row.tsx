@@ -4,8 +4,8 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 import type { ViewContext } from "@todo/core";
 import type { Label, Task } from "@todo/data";
 import type { CSSProperties, KeyboardEvent, ReactNode } from "react";
-import { formatDue } from "@/lib/format";
-import { describeRecurrence } from "@/lib/recurrence-text";
+import { formatDue } from "@todo/data";
+import { describeRecurrence } from "@todo/data";
 import { CheckIcon, ClockIcon, DragIcon, FlagIcon, HashIcon, RepeatIcon, TagIcon, TrashIcon } from "./icons";
 
 export interface DragBindings {
