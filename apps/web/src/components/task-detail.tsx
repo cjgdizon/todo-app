@@ -6,6 +6,7 @@ import {
   useCreateTask,
   useData,
   useLabels,
+  useMembers,
   useProjects,
   useSections,
   useTasks,
@@ -18,6 +19,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type R
 import { describeRecurrence, presetFor, presetRule, PRESETS, type PresetValue } from "@todo/data";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { CheckIcon, CloseIcon, SubtaskIcon, TrashIcon } from "./icons";
+import { TaskComments } from "./task-comments";
 import { useToast } from "./toast";
 
 const PRIORITY_LABELS: Record<number, string> = {
@@ -62,6 +64,7 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
   const projects = useProjects().data ?? [];
   const labels = useLabels().data ?? [];
   const sections = useSections().data ?? [];
+  const members = useMembers().data ?? [];
   const projectSections = sections.filter((section) => section.projectId === task.projectId);
   const update = useUpdateTask();
   const completeTask = useCompleteTask();
@@ -355,6 +358,27 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
             </Field>
           )}
 
+          {members.length > 1 && (
+            <Field label="Assignee" htmlFor="task-assignee">
+              <select
+                id="task-assignee"
+                className={control}
+                value={task.assigneeId ?? ""}
+                onChange={(event) => save({ assigneeId: event.target.value || null })}
+              >
+                <option value="">Unassigned</option>
+                {task.assigneeId && !members.some((m) => m.userId === task.assigneeId) && (
+                  <option value={task.assigneeId}>Former member</option>
+                )}
+                {members.map((member) => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.displayName}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+
           <fieldset>
             <legend className="mb-1 text-sm font-medium">Labels</legend>
             {labels.length === 0 ? (
@@ -419,6 +443,8 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
               </button>
             </form>
           </section>
+
+          <TaskComments taskId={task.id} />
 
           <button
             type="button"

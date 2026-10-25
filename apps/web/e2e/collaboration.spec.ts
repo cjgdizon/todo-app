@@ -1,5 +1,5 @@
-import { expect, test } from "@playwright/test";
-import { addTask, signUp, submitSignUp, taskRow, watchWrites } from "./helpers";
+import { expect, test, type Browser, type Page } from "@playwright/test";
+import { addTask, openTask, signUp, submitSignUp, taskRow, watchWrites } from "./helpers";
 
 test("an invited person joins a workspace and both see each other's changes live", async ({ browser }) => {
   const ownerContext = await browser.newContext();
@@ -48,6 +48,58 @@ test("an invited person joins a workspace and both see each other's changes live
   } finally {
     await ownerContext.close();
     await guestContext.close();
+  }
+});
+
+/** An owner and a guest who joined the owner's workspace through an invite link. */
+async function sharedWorkspace(browser: Browser) {
+  const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+  const [owner, guest] = (await Promise.all(contexts.map((context) => context.newPage()))) as [Page, Page];
+  await signUp(owner);
+  await owner.getByRole("link", { name: "Members and invites" }).click();
+  await owner.getByRole("button", { name: "Create invite link" }).click();
+  const link = await owner.getByLabel("Invite link (shown once)").inputValue();
+  await signUp(guest);
+  await guest.goto(link);
+  await guest.getByRole("button", { name: "Join workspace" }).click();
+  await expect(guest).toHaveURL(/\/inbox/);
+  await owner.getByRole("link", { name: "Inbox" }).click();
+  return { owner, guest, close: () => Promise.all(contexts.map((context) => context.close())) };
+}
+
+test("a task can be assigned and discussed in comments", async ({ browser }) => {
+  const { owner, guest, close } = await sharedWorkspace(browser);
+  try {
+    await addTask(owner, "Plan the offsite");
+    await expect(taskRow(guest, "Plan the offsite")).toBeVisible();
+
+    // Only people with a teammate see the assignee field; the owner picks the guest.
+    await openTask(owner, "Plan the offsite");
+    const assignee = owner.getByLabel("Assignee");
+    const guestName = await assignee.locator("option:not([value=''])").last().innerText();
+    await assignee.selectOption({ label: guestName });
+    await owner.getByRole("textbox", { name: "Add a comment" }).fill("Can you book a venue?");
+    await owner.getByRole("button", { name: "Post comment" }).click();
+    await expect(owner.getByText("Can you book a venue?")).toBeVisible();
+
+    // The guest opens the same task: the assignment and the comment arrived without a reload.
+    await openTask(guest, "Plan the offsite");
+    await expect(guest.getByLabel("Assignee")).toHaveValue(await assignee.inputValue());
+    await expect(guest.getByText("Can you book a venue?")).toBeVisible();
+
+    // A reply shows up live in the owner's open drawer; only the author can edit their own comment.
+    await guest.getByRole("textbox", { name: "Add a comment" }).fill("On it");
+    await guest.getByRole("button", { name: "Post comment" }).click();
+    await expect(owner.getByText("On it")).toBeVisible();
+    await expect(guest.getByRole("button", { name: "Edit" })).toHaveCount(1);
+
+    await owner.getByRole("button", { name: "Edit" }).click();
+    await owner.getByRole("textbox", { name: "Edit comment" }).fill("Can you book a venue by Friday?");
+    await owner.getByRole("button", { name: "Save" }).click();
+    await expect(guest.getByText("Can you book a venue by Friday?")).toBeVisible();
+    await expect(guest.getByText("(edited)")).toBeVisible();
+  } finally {
+    await close();
   }
 });
 

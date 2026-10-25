@@ -14,7 +14,16 @@ const TABLES = [
   ["sections", ["sections", "tasks"]],
   ["labels", ["labels", "tasks"]],
   ["saved_filters", ["savedFilters"]],
+  ["comments", ["comments"]],
+  ["workspace_members", ["members"]],
+  ["workspace_invites", ["invites"]],
 ] as const;
+
+// Every comments query of the workspace (one per task) shares this prefix.
+const listKeys = {
+  ...queryKeys,
+  comments: (workspaceId: string) => ["comments", workspaceId] as const,
+};
 
 /**
  * Keeps the open lists current when the workspace changes elsewhere (another tab, device or
@@ -32,7 +41,7 @@ export function useRealtimeSync(client: TodoClient, workspaceId: string | undefi
 
     const flushStale = () => {
       timer = undefined;
-      for (const name of stale) void queryClient.invalidateQueries({ queryKey: queryKeys[name](workspaceId) });
+      for (const name of stale) void queryClient.invalidateQueries({ queryKey: listKeys[name](workspaceId) });
       stale.clear();
     };
 

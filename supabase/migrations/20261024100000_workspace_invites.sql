@@ -123,3 +123,16 @@ revoke execute on function public.revoke_workspace_invite(uuid) from public, ano
 grant execute on function public.create_workspace_invite(uuid, public.workspace_role) to authenticated;
 grant execute on function public.accept_workspace_invite(text) to authenticated;
 grant execute on function public.revoke_workspace_invite(uuid) to authenticated;
+
+-- Live updates for the open-invites list (see the realtime migration; a no-op without the publication).
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+    and not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'workspace_invites'
+    ) then
+    alter publication supabase_realtime add table public.workspace_invites;
+  end if;
+end
+$$;
