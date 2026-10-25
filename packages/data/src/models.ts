@@ -283,3 +283,48 @@ export function parseComment(row: unknown): Comment {
     createdAt: r.created_at,
   };
 }
+
+/** One line of the activity feed. `action` is kept as text so entries from newer versions still load. */
+export interface Activity {
+  id: number;
+  action: string;
+  /** Null once the person's account is deleted. */
+  actorId: string | null;
+  actorName: string | null;
+  taskId: string | null;
+  /** The task's title when it happened; the task itself may have been renamed or deleted since. */
+  title: string | null;
+  assigneeId: string | null;
+  createdAt: Date;
+}
+
+const activityRow = z.object({
+  id: z.number().int(),
+  task_id: id.nullable(),
+  actor_id: id.nullable(),
+  action: z.string().min(1),
+  meta: z.unknown(),
+  created_at: timestamp,
+  profiles: z.object({ display_name: z.string() }).nullable(),
+});
+
+/** Reads a text field from the free-form `meta` column, ignoring anything that is not text. */
+function metaText(meta: unknown, key: string): string | null {
+  if (typeof meta !== "object" || meta === null) return null;
+  const value = (meta as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : null;
+}
+
+export function parseActivity(row: unknown): Activity {
+  const r = activityRow.parse(row);
+  return {
+    id: r.id,
+    action: r.action,
+    actorId: r.actor_id,
+    actorName: r.profiles?.display_name.trim() || null,
+    taskId: r.task_id,
+    title: metaText(r.meta, "title"),
+    assigneeId: metaText(r.meta, "assignee_id"),
+    createdAt: r.created_at,
+  };
+}

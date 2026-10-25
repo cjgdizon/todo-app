@@ -62,6 +62,7 @@ export const queryKeys = {
   memberships: (userId: string) => ["memberships", userId] as const,
   members: (workspaceId: string) => ["members", workspaceId] as const,
   invites: (workspaceId: string) => ["invites", workspaceId] as const,
+  activity: (workspaceId: string) => ["activity", workspaceId] as const,
   comments: (workspaceId: string, taskId: string) => ["comments", workspaceId, taskId] as const,
   projects: (workspaceId: string) => ["projects", workspaceId] as const,
   labels: (workspaceId: string) => ["labels", workspaceId] as const,

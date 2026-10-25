@@ -245,6 +245,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             Members and invites
           </Link>
           <Link
+            href="/activity"
+            aria-current={pathname === "/activity" ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+            className="rounded-sm px-2 py-1 text-left text-sm text-text-muted"
+          >
+            Activity
+          </Link>
+          <Link
             href="/settings"
             aria-current={pathname === "/settings" ? "page" : undefined}
             onClick={() => setMenuOpen(false)}

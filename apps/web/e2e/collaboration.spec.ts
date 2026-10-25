@@ -98,6 +98,16 @@ test("a task can be assigned and discussed in comments", async ({ browser }) => 
     await owner.getByRole("button", { name: "Save" }).click();
     await expect(guest.getByText("Can you book a venue by Friday?")).toBeVisible();
     await expect(guest.getByText("(edited)")).toBeVisible();
+
+    // The activity feed tells each person what happened, in their own terms.
+    await owner.keyboard.press("Escape");
+    await owner.getByRole("link", { name: "Activity" }).click();
+    await expect(owner.getByText(`You assigned “Plan the offsite” to ${guestName}`)).toBeVisible();
+    await expect(owner.getByText("commented on “Plan the offsite”").first()).toBeVisible();
+    await guest.keyboard.press("Escape");
+    await guest.getByRole("link", { name: "Activity" }).click();
+    await expect(guest.getByText(/assigned “Plan the offsite” to you$/)).toBeVisible();
+    await expect(guest.getByText("You commented on “Plan the offsite”")).toBeVisible();
   } finally {
     await close();
   }

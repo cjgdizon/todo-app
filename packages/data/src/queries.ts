@@ -2,6 +2,7 @@ import type { Priority } from "@todo/core";
 import type { TodoClient } from "./client.ts";
 import type { Database } from "./database.types.ts";
 import {
+  parseActivity,
   parseComment,
   parseInvite,
   parseLabel,
@@ -13,6 +14,7 @@ import {
   parseSection,
   parseTask,
   parseWorkspace,
+  type Activity,
   type Comment,
   type Invite,
   type Label,
@@ -609,4 +611,19 @@ export async function updateComment(
   if (Object.keys(update).length === 0) return;
   const { error } = await client.from("comments").update(update).eq("id", id);
   check(error);
+}
+
+const ACTIVITY_LIMIT = 100;
+
+/** The most recent activity in a shared workspace, newest first. */
+export async function fetchActivity(client: TodoClient, workspaceId: string): Promise<Activity[]> {
+  const { data, error } = await client
+    .from("activity_log")
+    .select("id,task_id,actor_id,action,meta,created_at,profiles(display_name)")
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(ACTIVITY_LIMIT);
+  check(error);
+  return (data ?? []).map(parseActivity);
 }

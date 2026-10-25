@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys, useData } from "./hooks.ts";
-import type { Comment, Invite, Member, Membership, WorkspaceRole } from "./models.ts";
+import type { Activity, Comment, Invite, Member, Membership, WorkspaceRole } from "./models.ts";
 import {
   acceptInvite,
   createInvite,
+  fetchActivity,
   fetchComments,
   fetchInvites,
   fetchMembers,
@@ -206,5 +207,14 @@ export function useDeleteComment(taskId: string) {
     onMutate: (id) => cache.apply((comments) => comments.filter((comment) => comment.id !== id)),
     onError: (_error, _id, context) => cache.rollback(context),
     onSettled: cache.settle,
+  });
+}
+
+/** Recent happenings in this workspace. Empty while you are the only member: nothing is recorded then. */
+export function useActivity() {
+  const { client, workspaceId } = useData();
+  return useQuery({
+    queryKey: queryKeys.activity(workspaceId),
+    queryFn: (): Promise<Activity[]> => fetchActivity(client, workspaceId),
   });
 }

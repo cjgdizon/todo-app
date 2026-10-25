@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseActivity,
   parseComment,
   parseInvite,
   parseLabel,
@@ -278,5 +279,35 @@ describe("collaboration rows", () => {
     });
     expect(comment.authorId).toBeNull();
     expect(comment.editedAt).toEqual(new Date("2026-10-24T11:00:00Z"));
+  });
+});
+
+describe('parseActivity', () => {
+  const row = {
+    id: 7,
+    task_id: uuid(1),
+    actor_id: uuid(9),
+    action: 'task_assigned',
+    meta: { title: 'Pay rent', assignee_id: uuid(8) },
+    created_at: '2026-10-26T10:00:00+00:00',
+    profiles: { display_name: 'Ana' },
+  };
+
+  it('maps an entry with the actor name and details from meta', () => {
+    expect(parseActivity(row)).toEqual({
+      id: 7,
+      action: 'task_assigned',
+      actorId: uuid(9),
+      actorName: 'Ana',
+      taskId: uuid(1),
+      title: 'Pay rent',
+      assigneeId: uuid(8),
+      createdAt: new Date('2026-10-26T10:00:00Z'),
+    });
+  });
+
+  it('copes with a deleted actor and with missing or odd meta', () => {
+    const entry = parseActivity({ ...row, actor_id: null, profiles: null, meta: 'odd', task_id: null });
+    expect(entry).toMatchObject({ actorId: null, actorName: null, taskId: null, title: null, assigneeId: null });
   });
 });

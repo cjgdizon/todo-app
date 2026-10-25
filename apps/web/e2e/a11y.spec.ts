@@ -57,6 +57,13 @@ for (const scheme of ["light", "dark"] as const) {
       await expect(page.getByRole("button", { name: /^Revoke the member invite/ })).toBeVisible();
       expect(await violations(page), "members with an open invite").toEqual([]);
 
+      await page.getByRole("link", { name: "Activity" }).click();
+      await expect(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
+      await expect(page.getByText(/Nothing yet/)).toBeVisible();
+      expect(await violations(page), "activity, empty").toEqual([]);
+
+      await page.getByRole("link", { name: "Members and invites" }).click();
+      await page.getByRole("button", { name: "Create invite link" }).click();
       const link = new URL(await page.getByLabel("Invite link (shown once)").inputValue());
       await page.goto(link.pathname + link.search);
       await expect(page.getByRole("heading", { name: "Join a workspace", level: 1 })).toBeVisible();
