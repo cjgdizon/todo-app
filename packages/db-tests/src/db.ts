@@ -12,6 +12,7 @@ const MIGRATIONS_DIR = fileURLToPath(new URL("../../../supabase/migrations/", im
 const SUPABASE_STUB = `
   create role anon nologin;
   create role authenticated nologin;
+  create role service_role nologin bypassrls;
 
   create schema auth;
   create table auth.users (
@@ -23,7 +24,7 @@ const SUPABASE_STUB = `
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;
 
-  grant usage on schema public, auth to anon, authenticated;
+  grant usage on schema public, auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated;
   alter default privileges in schema public grant all on tables to anon, authenticated;
   alter default privileges in schema public grant all on sequences to anon, authenticated;
@@ -69,6 +70,11 @@ async function withRole<T>(db: PGlite, role: string, uid: string | null, fn: () 
 /** Runs `fn` as the `authenticated` API role acting as user `uid` (RLS applies). */
 export function asUser<T>(db: PGlite, uid: string, fn: () => Promise<T>): Promise<T> {
   return withRole(db, "authenticated", uid, fn);
+}
+
+/** Runs `fn` as the `service_role` API role, which server-side code (Edge Functions) uses. */
+export function asService<T>(db: PGlite, fn: () => Promise<T>): Promise<T> {
+  return withRole(db, "service_role", null, fn);
 }
 
 /** Runs `fn` as the `anon` API role (no signed-in user). */

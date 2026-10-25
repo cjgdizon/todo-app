@@ -9,7 +9,7 @@ begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     foreach t in array array[
       'tasks', 'projects', 'sections', 'labels', 'task_labels', 'saved_filters',
-      'comments', 'workspace_members'
+      'comments', 'workspace_members', 'reminders'
     ] loop
       if not exists (
         select 1 from pg_publication_tables
