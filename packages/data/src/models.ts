@@ -328,3 +328,23 @@ export function parseActivity(row: unknown): Activity {
     createdAt: r.created_at,
   };
 }
+
+/** The signed-in user's own reminder for a task: how long before the due time, and whether it has fired. */
+export interface Reminder {
+  taskId: string;
+  offsetMin: number;
+  remindAt: Date;
+  sent: boolean;
+}
+
+const reminderRow = z.object({
+  task_id: id,
+  offset_min: z.number().int().min(0),
+  remind_at: timestamp,
+  sent_at: z.string().nullable(),
+});
+
+export function parseReminder(row: unknown): Reminder {
+  const r = reminderRow.parse(row);
+  return { taskId: r.task_id, offsetMin: r.offset_min, remindAt: r.remind_at, sent: r.sent_at !== null };
+}

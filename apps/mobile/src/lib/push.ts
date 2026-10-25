@@ -4,6 +4,16 @@ import * as Notifications from "expo-notifications";
 import type { TodoClient } from "@todo/data";
 import { Platform } from "react-native";
 
+// A reminder that arrives while the app is open still shows, instead of being swallowed.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 /**
  * Asks for notification permission and registers this device with the server, so reminders (M6)
  * can reach it. Does nothing where it cannot work: simulators, a denied permission, a build without
@@ -16,9 +26,10 @@ export async function registerDevice(client: TodoClient): Promise<void> {
 
   try {
     if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("default", {
+      // The sender names this channel (`channelId` in @todo/core reminders), so it must exist.
+      await Notifications.setNotificationChannelAsync("reminders", {
         name: "Reminders",
-        importance: Notifications.AndroidImportance.DEFAULT,
+        importance: Notifications.AndroidImportance.HIGH,
       });
     }
     const current = await Notifications.getPermissionsAsync();

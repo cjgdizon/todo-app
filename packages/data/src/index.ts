@@ -3,6 +3,8 @@ export type { Database } from "./database.types.ts";
 export * from "./hooks.ts";
 export * from "./collab-hooks.ts";
 export * from "./activity-text.ts";
+export * from "./reminder-text.ts";
+export * from "./reminder-hooks.ts";
 export * from "./models.ts";
 export { DataError, updateProfileTimeZone } from "./queries.ts";
 export type { TaskPatch } from "./queries.ts";

@@ -10,6 +10,7 @@ import {
   parseMembership,
   parseProfile,
   parseProject,
+  parseReminder,
   parseSavedFilter,
   parseSection,
   parseTask,
@@ -22,6 +23,7 @@ import {
   type Membership,
   type Profile,
   type Project,
+  type Reminder,
   type SavedFilter,
   type Section,
   type Task,
@@ -626,4 +628,30 @@ export async function fetchActivity(client: TodoClient, workspaceId: string): Pr
     .limit(ACTIVITY_LIMIT);
   check(error);
   return (data ?? []).map(parseActivity);
+}
+
+/** The signed-in user's active reminders (others' are hidden by row-level security). */
+export async function fetchReminders(client: TodoClient, workspaceId: string): Promise<Reminder[]> {
+  const rows = await fetchAll((from, to) =>
+    client
+      .from("reminders")
+      .select("task_id,offset_min,remind_at,sent_at")
+      .eq("workspace_id", workspaceId)
+      .is("deleted_at", null)
+      .order("remind_at")
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(parseReminder);
+}
+
+/** Needs a connection (it is a server call), and fails with a plain message if the time has passed. */
+export async function setTaskReminder(client: TodoClient, taskId: string, offsetMin: number): Promise<void> {
+  const { error } = await client.rpc("set_task_reminder", { p_task: taskId, p_offset_min: offsetMin });
+  check(error);
+}
+
+export async function clearTaskReminder(client: TodoClient, taskId: string): Promise<void> {
+  const { error } = await client.rpc("clear_task_reminder", { p_task: taskId });
+  check(error);
 }

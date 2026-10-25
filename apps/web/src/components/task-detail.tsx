@@ -20,6 +20,7 @@ import { describeRecurrence, presetFor, presetRule, PRESETS, type PresetValue } 
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { CheckIcon, CloseIcon, SubtaskIcon, TrashIcon } from "./icons";
 import { TaskComments } from "./task-comments";
+import { TaskReminder } from "./task-reminder";
 import { useToast } from "./toast";
 
 const PRIORITY_LABELS: Record<number, string> = {
@@ -303,6 +304,8 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
               </label>
             )}
           </Field>
+
+          <TaskReminder task={task} />
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Priority" htmlFor="task-priority">

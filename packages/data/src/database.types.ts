@@ -339,6 +339,7 @@ export type Database = {
       }
       reminders: {
         Row: {
+          offset_min: number
           created_at: string
           deleted_at: string | null
           id: string
@@ -352,6 +353,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          offset_min?: number
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -365,6 +367,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          offset_min?: number
           created_at?: string
           deleted_at?: string | null
           id?: string
@@ -913,6 +916,14 @@ export type Database = {
       accept_workspace_invite: {
         Args: { invite_token: string }
         Returns: string
+      }
+      clear_task_reminder: {
+        Args: { p_task: string }
+        Returns: undefined
+      }
+      set_task_reminder: {
+        Args: { p_offset_min: number; p_task: string }
+        Returns: undefined
       }
       create_workspace_invite: {
         Args: { invite_role?: Database["public"]["Enums"]["workspace_role"]; ws: string }

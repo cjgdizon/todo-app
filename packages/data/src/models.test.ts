@@ -7,6 +7,7 @@ import {
   parseMember,
   parseMembership,
   parseProfile,
+  parseReminder,
   parseProject,
   parseSavedFilter,
   parseSection,
@@ -309,5 +310,31 @@ describe('parseActivity', () => {
   it('copes with a deleted actor and with missing or odd meta', () => {
     const entry = parseActivity({ ...row, actor_id: null, profiles: null, meta: 'odd', task_id: null });
     expect(entry).toMatchObject({ actorId: null, actorName: null, taskId: null, title: null, assigneeId: null });
+  });
+});
+
+describe('parseReminder', () => {
+  const row = {
+    task_id: uuid(1),
+    offset_min: 60,
+    remind_at: '2030-03-15T09:00:00+00:00',
+    sent_at: null,
+  };
+
+  it('maps a reminder that has not fired yet', () => {
+    expect(parseReminder(row)).toEqual({
+      taskId: uuid(1),
+      offsetMin: 60,
+      remindAt: new Date('2030-03-15T09:00:00Z'),
+      sent: false,
+    });
+  });
+
+  it('knows when it has fired', () => {
+    expect(parseReminder({ ...row, sent_at: '2030-03-15T09:00:05+00:00' }).sent).toBe(true);
+  });
+
+  it('rejects a negative offset', () => {
+    expect(() => parseReminder({ ...row, offset_min: -1 })).toThrow();
   });
 });

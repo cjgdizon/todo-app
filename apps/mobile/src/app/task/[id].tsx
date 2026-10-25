@@ -13,6 +13,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNotice } from "@/components/notice";
+import { ReminderChips } from "@/components/reminder-chips";
 import { radius, space, TOUCH, useTheme } from "@/lib/theme";
 
 export default function TaskScreen() {
@@ -166,6 +167,8 @@ function Details({ task }: { task: Task }) {
       {task.rrule && (
         <Text style={{ color: theme["text-muted"] }}>Repeats: {describeRecurrence(task.rrule, task.recurAfterCompletion)}</Text>
       )}
+
+      <ReminderChips task={task} />
 
       <View style={styles.actions}>
         <Pressable

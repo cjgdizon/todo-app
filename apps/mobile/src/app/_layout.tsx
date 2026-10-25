@@ -2,6 +2,7 @@ import "@/lib/polyfills";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Providers, useSession } from "@/components/providers";
+import { useOpenTaskFromNotification } from "@/lib/notification-taps";
 import { useTheme } from "@/lib/theme";
 
 export default function RootLayout() {
@@ -17,6 +18,7 @@ export default function RootLayout() {
 function RootStack() {
   const theme = useTheme();
   const session = useSession();
+  useOpenTaskFromNotification(session.status === "in");
   return (
     <Stack
       screenOptions={{
