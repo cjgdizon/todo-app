@@ -801,6 +801,45 @@ export type Database = {
           },
         ]
       }
+      workspace_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          role: Database["public"]["Enums"]["workspace_role"]
+          token_hash: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"]
+          token_hash: string
+          workspace_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"]
+          token_hash?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -871,12 +910,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_workspace_invite: {
+        Args: { invite_token: string }
+        Returns: string
+      }
+      create_workspace_invite: {
+        Args: { invite_role?: Database["public"]["Enums"]["workspace_role"]; ws: string }
+        Returns: string
+      }
       move_project: {
         Args: { project: string; target_ws: string }
         Returns: undefined
       }
       register_push_token: {
         Args: { p_platform: string; p_token: string }
+        Returns: undefined
+      }
+      revoke_workspace_invite: {
+        Args: { invite: string }
         Returns: undefined
       }
       transfer_workspace: {
