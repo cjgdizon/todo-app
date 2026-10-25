@@ -8,6 +8,7 @@ const task: Task = {
   projectId: "p1",
   sectionId: null,
   parentId: null,
+  assigneeId: null,
   title: "Pay rent",
   notes: null,
   priority: 4,
@@ -37,6 +38,12 @@ describe("applyTaskChange", () => {
     const placed = applyTaskChange(task, { sectionId: "s1" });
     expect(placed?.sectionId).toBe("s1");
     expect(applyTaskChange(placed as Task, { sectionId: null })?.sectionId).toBeNull();
+  });
+
+  it("assigns and unassigns a member", () => {
+    const assigned = applyTaskChange(task, { assigneeId: "u1" });
+    expect(assigned?.assigneeId).toBe("u1");
+    expect(applyTaskChange(assigned as Task, { assigneeId: null })?.assigneeId).toBeNull();
   });
 
   it("moves to another project and out of its section in one change", () => {

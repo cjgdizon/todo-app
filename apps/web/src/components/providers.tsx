@@ -15,6 +15,7 @@ import {
 import { del, get, set } from "idb-keyval";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useActiveWorkspace } from "@/lib/active-workspace";
 import { getOfflineQueue, onRejectedWrite, onWriteConflict } from "@/lib/offline";
 import { useRealtimeSync } from "@/lib/realtime";
 import { createClient } from "@/lib/supabase/client";
@@ -211,7 +212,7 @@ function SessionGate({ children }: { children: ReactNode }) {
 }
 
 function Workspace({ client, userId, children }: { client: TodoClient; userId: string; children: ReactNode }) {
-  const bootstrap = useBootstrap(client, userId);
+  const bootstrap = useBootstrap(client, userId, useActiveWorkspace(userId));
   const browserZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const profileZone = bootstrap.data?.profile.timeZone;
   // New accounts start on "UTC"; until the user picks one, use the browser's zone.

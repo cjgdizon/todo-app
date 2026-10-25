@@ -57,7 +57,12 @@ export function useData(): DataContextValue {
 }
 
 export const queryKeys = {
-  bootstrap: (userId: string) => ["bootstrap", userId] as const,
+  bootstrap: (userId: string, preferredWorkspaceId: string | null) =>
+    ["bootstrap", userId, preferredWorkspaceId] as const,
+  memberships: (userId: string) => ["memberships", userId] as const,
+  members: (workspaceId: string) => ["members", workspaceId] as const,
+  invites: (workspaceId: string) => ["invites", workspaceId] as const,
+  comments: (workspaceId: string, taskId: string) => ["comments", workspaceId, taskId] as const,
   projects: (workspaceId: string) => ["projects", workspaceId] as const,
   labels: (workspaceId: string) => ["labels", workspaceId] as const,
   tasks: (workspaceId: string) => ["tasks", workspaceId] as const,
@@ -65,11 +70,15 @@ export const queryKeys = {
   sections: (workspaceId: string) => ["sections", workspaceId] as const,
 };
 
-/** Profile and workspace for the signed-in user; load this before rendering the app shell. */
-export function useBootstrap(client: TodoClient, userId: string) {
+/**
+ * Profile and active workspace for the signed-in user; load this before rendering the app shell.
+ * `preferredWorkspaceId` is the user's last choice; it falls back to their oldest workspace
+ * when they have left it or it no longer exists.
+ */
+export function useBootstrap(client: TodoClient, userId: string, preferredWorkspaceId: string | null = null) {
   return useQuery({
-    queryKey: queryKeys.bootstrap(userId),
-    queryFn: () => fetchBootstrap(client, userId),
+    queryKey: queryKeys.bootstrap(userId, preferredWorkspaceId),
+    queryFn: () => fetchBootstrap(client, userId, preferredWorkspaceId),
     staleTime: Infinity,
   });
 }
@@ -215,6 +224,7 @@ export function useCreateTask() {
       projectId,
       sectionId: null,
       parentId,
+      assigneeId: null,
       title: input.title,
       notes: input.notes ?? null,
       priority: input.priority,

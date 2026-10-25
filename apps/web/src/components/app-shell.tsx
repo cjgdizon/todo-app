@@ -32,6 +32,7 @@ import { SyncStatus } from "./sync-status";
 import { TaskDetail } from "./task-detail";
 import { ThemeToggle } from "./theme-toggle";
 import { useToast } from "./toast";
+import { WorkspaceSwitcher } from "./workspace-switcher";
 
 function NavLink({
   href,
@@ -137,6 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         }`}
       >
         <div className="px-3 pt-2 text-[20px] leading-7 font-semibold">Todo</div>
+        <WorkspaceSwitcher onSwitch={() => setMenuOpen(false)} />
 
         <button
           type="button"
@@ -234,6 +236,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         )}
 
         <div className="mt-auto flex flex-col gap-1 border-t border-border pt-3">
+          <Link
+            href="/members"
+            aria-current={pathname === "/members" ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+            className="rounded-sm px-2 py-1 text-left text-sm text-text-muted"
+          >
+            Members and invites
+          </Link>
           <Link
             href="/settings"
             aria-current={pathname === "/settings" ? "page" : undefined}

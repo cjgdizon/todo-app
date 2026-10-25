@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@todo/data";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "../env";
+import { safeNext } from "../safe-next";
 
 /** Routes anyone can open. Everything else needs a session. */
 const PUBLIC_PATHS = ["/login", "/auth"];
@@ -33,8 +34,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
 
   if (!signedIn && !isPublic(pathname)) {
     const url = request.nextUrl.clone();
+    // An invite link keeps its place through sign-in; every other page just goes to /login.
+    const next = safeNext(pathname + request.nextUrl.search);
     url.pathname = "/login";
-    url.search = "";
+    url.search = next ? `?next=${encodeURIComponent(next)}` : "";
     return NextResponse.redirect(url);
   }
   if (signedIn && pathname === "/login") {

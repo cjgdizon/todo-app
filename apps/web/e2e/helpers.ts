@@ -1,20 +1,30 @@
 import { expect, type Page, type Request } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 
-/** Creates a fresh user through the real sign-up form and lands on the Inbox. */
-export async function signUp(page: Page): Promise<void> {
-  trackWrites(page);
+/** Fills the sign-up form on the login page the browser is already on. */
+export async function submitSignUp(page: Page): Promise<void> {
   const email = `e2e-${Date.now()}-${randomBytes(3).toString("hex")}@example.test`;
   const password = randomBytes(12).toString("hex");
 
-  await page.goto("/login");
   await page.getByRole("button", { name: "Create an account" }).click();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Create your account" }).click();
+}
+
+/** Creates a fresh user through the real sign-up form and lands on the Inbox. */
+export async function signUp(page: Page): Promise<void> {
+  trackWrites(page);
+  await page.goto("/login");
+  await submitSignUp(page);
 
   await expect(page).toHaveURL(/\/inbox/);
   await expect(page.getByRole("heading", { name: "Inbox", level: 1 })).toBeVisible();
+}
+
+/** Tracks writes for a page that signs up by another route (see `submitSignUp`). */
+export function watchWrites(page: Page): void {
+  trackWrites(page);
 }
 
 // Pages visited earlier stay mounted but hidden, so every locator below only matches what is on screen.

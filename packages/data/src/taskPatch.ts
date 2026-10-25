@@ -18,6 +18,7 @@ export function applyTaskChange(task: Task, change: TaskChange): Task | null {
   if (change.projectId !== undefined) next.projectId = change.projectId;
   if (change.sectionId !== undefined) next.sectionId = change.sectionId;
   if (change.parentId !== undefined) next.parentId = change.parentId;
+  if (change.assigneeId !== undefined) next.assigneeId = change.assigneeId;
   if (change.dueAt !== undefined) next.dueAt = change.dueAt;
   if (change.dueAllDay !== undefined) next.dueAllDay = change.dueAllDay;
   if (change.dueTz !== undefined) next.dueTz = change.dueTz;

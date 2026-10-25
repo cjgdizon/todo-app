@@ -7,6 +7,7 @@ const task = (overrides: Partial<Task> & { id: string; title: string }): Task =>
   projectId: null,
   sectionId: null,
   parentId: null,
+  assigneeId: null,
   notes: null,
   priority: 4,
   dueAt: null,

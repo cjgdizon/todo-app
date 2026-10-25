@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
+import { safeNext } from "@/lib/safe-next";
 import { createClient } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup" | "magic";
@@ -42,6 +43,8 @@ export function LoginForm() {
 
     setBusy(true);
     const redirectTo = `${window.location.origin}/auth/callback`;
+    // An invite link sends people here first; they land back on it, not on the inbox.
+    const landing = safeNext(new URLSearchParams(window.location.search).get("next")) ?? "/inbox";
     try {
       if (mode === "signin") {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
@@ -49,7 +52,7 @@ export function LoginForm() {
           setError("That email and password don't match. Check them and try again.");
           return;
         }
-        router.replace("/inbox");
+        router.replace(landing);
       } else if (mode === "signup") {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -60,7 +63,7 @@ export function LoginForm() {
           setError(signUpError.message);
           return;
         }
-        if (data.session) router.replace("/inbox");
+        if (data.session) router.replace(landing);
         else setNotice("Check your email to confirm your address, then sign in.");
       } else {
         const { error: otpError } = await supabase.auth.signInWithOtp({

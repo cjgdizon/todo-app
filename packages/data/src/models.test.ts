@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseComment,
+  parseInvite,
   parseLabel,
+  parseMember,
+  parseMembership,
   parseProfile,
   parseProject,
   parseSavedFilter,
@@ -46,6 +50,7 @@ describe("parseTask", () => {
       projectId: uuid(2),
       sectionId: null,
       parentId: null,
+      assigneeId: null,
       title: "Pay rent",
       notes: "bring cash",
       priority: 2,
@@ -64,6 +69,10 @@ describe("parseTask", () => {
   it("parses completed_at into a Date", () => {
     const task = parseTask({ ...taskRow, completed_at: "2026-10-20T11:00:00+00:00" }, []);
     expect(task.completedAt).toEqual(new Date("2026-10-20T11:00:00Z"));
+  });
+
+  it("keeps the assignee", () => {
+    expect(parseTask({ ...taskRow, assignee_id: uuid(8) }, []).assigneeId).toBe(uuid(8));
   });
 
   it("rejects a priority outside 1-4", () => {
@@ -194,5 +203,80 @@ describe("parseProject, parseLabel, parseProfile", () => {
         created_at: "2026-10-20T10:00:00+00:00",
       }),
     ).toEqual({ id: uuid(9), displayName: "Cj", timeZone: "Asia/Manila" });
+  });
+});
+
+describe("collaboration rows", () => {
+  it("maps a membership with its workspace, for the workspace switcher", () => {
+    expect(
+      parseMembership({ role: "admin", workspaces: { id: uuid(5), name: "Team", owner_id: uuid(9) } }),
+    ).toEqual({ id: uuid(5), name: "Team", role: "admin" });
+  });
+
+  it("maps a member with the display name from the profile", () => {
+    expect(
+      parseMember({ user_id: uuid(9), role: "member", profiles: { display_name: "Ana" } }),
+    ).toEqual({ userId: uuid(9), role: "member", displayName: "Ana" });
+  });
+
+  it("falls back to a placeholder when a member has no display name", () => {
+    expect(parseMember({ user_id: uuid(9), role: "member", profiles: { display_name: "" } }).displayName).toBe(
+      "Unnamed member",
+    );
+  });
+
+  it("maps a pending invite", () => {
+    expect(
+      parseInvite({
+        id: uuid(3),
+        role: "member",
+        expires_at: "2026-10-31T10:00:00+00:00",
+        created_at: "2026-10-24T10:00:00+00:00",
+      }),
+    ).toEqual({
+      id: uuid(3),
+      role: "member",
+      expiresAt: new Date("2026-10-31T10:00:00Z"),
+      createdAt: new Date("2026-10-24T10:00:00Z"),
+    });
+  });
+
+  it("rejects an invite for the owner role", () => {
+    expect(() =>
+      parseInvite({ id: uuid(3), role: "owner", expires_at: "2026-10-31T10:00:00+00:00", created_at: "2026-10-24T10:00:00+00:00" }),
+    ).toThrow();
+  });
+
+  it("maps a comment", () => {
+    expect(
+      parseComment({
+        id: uuid(4),
+        task_id: uuid(1),
+        author_id: uuid(9),
+        body: "On it",
+        edited_at: null,
+        created_at: "2026-10-24T10:00:00+00:00",
+      }),
+    ).toEqual({
+      id: uuid(4),
+      taskId: uuid(1),
+      authorId: uuid(9),
+      body: "On it",
+      editedAt: null,
+      createdAt: new Date("2026-10-24T10:00:00Z"),
+    });
+  });
+
+  it("keeps a comment whose author was deleted", () => {
+    const comment = parseComment({
+      id: uuid(4),
+      task_id: uuid(1),
+      author_id: null,
+      body: "Left behind",
+      edited_at: "2026-10-24T11:00:00+00:00",
+      created_at: "2026-10-24T10:00:00+00:00",
+    });
+    expect(comment.authorId).toBeNull();
+    expect(comment.editedAt).toEqual(new Date("2026-10-24T11:00:00Z"));
   });
 });

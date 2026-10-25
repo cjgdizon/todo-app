@@ -2,20 +2,29 @@ import type { Priority } from "@todo/core";
 import type { TodoClient } from "./client.ts";
 import type { Database } from "./database.types.ts";
 import {
+  parseComment,
+  parseInvite,
   parseLabel,
+  parseMember,
+  parseMembership,
   parseProfile,
   parseProject,
   parseSavedFilter,
   parseSection,
   parseTask,
   parseWorkspace,
+  type Comment,
+  type Invite,
   type Label,
+  type Member,
+  type Membership,
   type Profile,
   type Project,
   type SavedFilter,
   type Section,
   type Task,
   type Workspace,
+  type WorkspaceRole,
 } from "./models.ts";
 
 /**
@@ -39,6 +48,8 @@ function check(error: { message: string } | null): void {
 // PostgREST returns at most 1000 rows per request.
 const PAGE_SIZE = 1000;
 const MAX_PAGES = 20;
+// A person belongs to a handful of workspaces; this only bounds the query.
+const MAX_WORKSPACES = 100;
 
 async function fetchAll(
   page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
@@ -56,7 +67,7 @@ async function fetchAll(
 
 // Explicit column lists: `search` (a tsvector) is large and never needed by the app.
 const TASK_COLUMNS =
-  "id,workspace_id,project_id,section_id,parent_id,title,notes,priority,due_at,due_all_day,due_tz,rrule,recur_after_completion,position,completed_at,version";
+  "id,workspace_id,project_id,section_id,parent_id,assignee_id,title,notes,priority,due_at,due_all_day,due_tz,rrule,recur_after_completion,position,completed_at,version";
 const PROJECT_COLUMNS = "id,workspace_id,name,color,position,archived_at";
 const LABEL_COLUMNS = "id,workspace_id,name,color";
 
@@ -65,15 +76,23 @@ export interface Bootstrap {
   workspace: Workspace;
 }
 
-/** The signed-in user's profile and their first (oldest) workspace, "Personal" after sign-up. */
-export async function fetchBootstrap(client: TodoClient, userId: string): Promise<Bootstrap> {
+/**
+ * The signed-in user's profile and active workspace: `preferredWorkspaceId` when they still
+ * belong to it, otherwise their oldest one ("Personal" after sign-up).
+ */
+export async function fetchBootstrap(
+  client: TodoClient,
+  userId: string,
+  preferredWorkspaceId: string | null = null,
+): Promise<Bootstrap> {
   const [profile, workspaces] = await Promise.all([
     client.from("profiles").select("id,display_name,timezone").eq("id", userId).single(),
-    client.from("workspaces").select("id,name").order("created_at").order("id").limit(1),
+    client.from("workspaces").select("id,name").order("created_at").order("id").limit(MAX_WORKSPACES),
   ]);
   check(profile.error);
   check(workspaces.error);
-  const workspace = workspaces.data?.[0];
+  const rows = workspaces.data ?? [];
+  const workspace = rows.find((row) => row.id === preferredWorkspaceId) ?? rows[0];
   if (!workspace) throw new DataError("No workspace found for this account");
   return { profile: parseProfile(profile.data), workspace: parseWorkspace(workspace) };
 }
@@ -234,6 +253,7 @@ export interface TaskPatch {
   /** A board column of the task's project. Clear it (null) whenever the project changes. */
   sectionId?: string | null;
   parentId?: string | null;
+  assigneeId?: string | null;
   dueAt?: Date | null;
   dueAllDay?: boolean;
   dueTz?: string | null;
@@ -256,6 +276,7 @@ export function toTaskUpdate(patch: TaskPatch): TaskUpdate {
   if (patch.projectId !== undefined) update.project_id = patch.projectId;
   if (patch.sectionId !== undefined) update.section_id = patch.sectionId;
   if (patch.parentId !== undefined) update.parent_id = patch.parentId;
+  if (patch.assigneeId !== undefined) update.assignee_id = patch.assigneeId;
   if (patch.dueAt !== undefined) update.due_at = iso(patch.dueAt);
   if (patch.dueAllDay !== undefined) update.due_all_day = patch.dueAllDay;
   if (patch.dueTz !== undefined) update.due_tz = patch.dueTz;
@@ -453,5 +474,139 @@ export async function updateLabel(
   if (patch.deletedAt !== undefined) update.deleted_at = iso(patch.deletedAt);
   if (Object.keys(update).length === 0) return;
   const { error } = await client.from("labels").update(update).eq("id", id);
+  check(error);
+}
+
+/** Every workspace the user belongs to, oldest first, with their role in each. */
+export async function fetchMemberships(client: TodoClient, userId: string): Promise<Membership[]> {
+  const { data, error } = await client
+    .from("workspace_members")
+    .select("role,created_at,workspaces(id,name)")
+    .eq("user_id", userId)
+    .order("created_at")
+    .order("workspace_id");
+  check(error);
+  return (data ?? []).map(parseMembership);
+}
+
+export async function fetchMembers(client: TodoClient, workspaceId: string): Promise<Member[]> {
+  const { data, error } = await client
+    .from("workspace_members")
+    .select("user_id,role,profiles(display_name)")
+    .eq("workspace_id", workspaceId)
+    .order("created_at")
+    .order("user_id");
+  check(error);
+  return (data ?? []).map(parseMember);
+}
+
+export async function updateMemberRole(
+  client: TodoClient,
+  workspaceId: string,
+  userId: string,
+  role: Exclude<WorkspaceRole, "owner">,
+): Promise<void> {
+  const { error } = await client
+    .from("workspace_members")
+    .update({ role })
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId);
+  check(error);
+}
+
+/** Removes a member (an admin) or leaves the workspace (the member themself). */
+export async function removeMember(client: TodoClient, workspaceId: string, userId: string): Promise<void> {
+  const { error } = await client
+    .from("workspace_members")
+    .delete()
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", userId);
+  check(error);
+}
+
+/** Invites that can still be used. Only admins see any (row-level security). */
+export async function fetchInvites(client: TodoClient, workspaceId: string): Promise<Invite[]> {
+  const { data, error } = await client
+    .from("workspace_invites")
+    .select("id,role,expires_at,created_at")
+    .eq("workspace_id", workspaceId)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at")
+    .order("id");
+  check(error);
+  return (data ?? []).map(parseInvite);
+}
+
+/** Creates an invite and returns its token, which is shown once and never stored in readable form. */
+export async function createInvite(
+  client: TodoClient,
+  workspaceId: string,
+  role: Exclude<WorkspaceRole, "owner">,
+): Promise<string> {
+  const { data, error } = await client.rpc("create_workspace_invite", { ws: workspaceId, invite_role: role });
+  check(error);
+  if (typeof data !== "string" || data.length === 0) throw new DataError("The server did not return an invite");
+  return data;
+}
+
+/** Joins the workspace the token belongs to and returns its id. */
+export async function acceptInvite(client: TodoClient, token: string): Promise<string> {
+  const { data, error } = await client.rpc("accept_workspace_invite", { invite_token: token });
+  check(error);
+  if (typeof data !== "string") throw new DataError("The server did not return a workspace");
+  return data;
+}
+
+export async function revokeInvite(client: TodoClient, inviteId: string): Promise<void> {
+  const { error } = await client.rpc("revoke_workspace_invite", { invite: inviteId });
+  check(error);
+}
+
+const COMMENT_COLUMNS = "id,task_id,author_id,body,edited_at,created_at";
+
+export async function fetchComments(client: TodoClient, workspaceId: string, taskId: string): Promise<Comment[]> {
+  const rows = await fetchAll((from, to) =>
+    client
+      .from("comments")
+      .select(COMMENT_COLUMNS)
+      .eq("workspace_id", workspaceId)
+      .eq("task_id", taskId)
+      .is("deleted_at", null)
+      .order("created_at")
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(parseComment);
+}
+
+export async function insertComment(
+  client: TodoClient,
+  comment: { id: string; workspaceId: string; taskId: string; authorId: string; body: string },
+): Promise<void> {
+  const { error } = await client.from("comments").insert({
+    id: comment.id,
+    workspace_id: comment.workspaceId,
+    task_id: comment.taskId,
+    author_id: comment.authorId,
+    body: comment.body,
+  });
+  check(error);
+}
+
+export async function updateComment(
+  client: TodoClient,
+  id: string,
+  patch: { body?: string; deletedAt?: Date | null },
+): Promise<void> {
+  const update: Database["public"]["Tables"]["comments"]["Update"] = {};
+  if (patch.body !== undefined) {
+    update.body = patch.body;
+    update.edited_at = new Date().toISOString();
+  }
+  if (patch.deletedAt !== undefined) update.deleted_at = iso(patch.deletedAt);
+  if (Object.keys(update).length === 0) return;
+  const { error } = await client.from("comments").update(update).eq("id", id);
   check(error);
 }
