@@ -17,6 +17,8 @@ test("a timer starts from a task, shows on every page, survives a reload and sto
   await reloadWhenSaved(page);
   await expect(timerBar(page)).toContainText("Timing");
 
+  // The open drawer covers the bar's Stop button (and has its own), so close it first.
+  await page.keyboard.press("Escape");
   await timerBar(page).getByRole("button", { name: "Stop", exact: true }).click();
   await expect(timerBar(page)).toHaveCount(0);
 
