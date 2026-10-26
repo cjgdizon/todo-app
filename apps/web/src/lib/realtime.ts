@@ -19,6 +19,7 @@ const TABLES = [
   ["workspace_invites", ["invites"]],
   ["activity_log", ["activity"]],
   ["reminders", ["reminders"]],
+  ["time_entries", ["timeEntries"]],
 ] as const;
 
 // Every comments query of the workspace (one per task) shares this prefix.

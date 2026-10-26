@@ -14,6 +14,7 @@ import {
   parseSavedFilter,
   parseSection,
   parseTask,
+  parseTimeEntry,
   parseWorkspace,
   type Activity,
   type Comment,
@@ -27,6 +28,7 @@ import {
   type SavedFilter,
   type Section,
   type Task,
+  type TimeEntry,
   type Workspace,
   type WorkspaceRole,
 } from "./models.ts";
@@ -653,5 +655,48 @@ export async function setTaskReminder(client: TodoClient, taskId: string, offset
 
 export async function clearTaskReminder(client: TodoClient, taskId: string): Promise<void> {
   const { error } = await client.rpc("clear_task_reminder", { p_task: taskId });
+  check(error);
+}
+
+/** The signed-in user's time entries since `since`, plus any timer still running (others' are hidden by row-level security). */
+export async function fetchTimeEntries(client: TodoClient, workspaceId: string, since: Date): Promise<TimeEntry[]> {
+  const rows = await fetchAll((from, to) =>
+    client
+      .from("time_entries")
+      .select("id,task_id,started_at,ended_at")
+      .eq("workspace_id", workspaceId)
+      .is("deleted_at", null)
+      .or(`started_at.gte.${since.toISOString()},ended_at.is.null`)
+      .order("started_at", { ascending: false })
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(parseTimeEntry);
+}
+
+export async function insertTimeEntry(
+  client: TodoClient,
+  entry: { id: string; workspaceId: string; taskId: string; userId: string; startedAt: Date },
+): Promise<void> {
+  const { error } = await client.from("time_entries").insert({
+    id: entry.id,
+    workspace_id: entry.workspaceId,
+    task_id: entry.taskId,
+    user_id: entry.userId,
+    started_at: entry.startedAt.toISOString(),
+  });
+  check(error);
+}
+
+export async function updateTimeEntry(
+  client: TodoClient,
+  id: string,
+  patch: { endedAt?: Date; deletedAt?: Date },
+): Promise<void> {
+  const update: Database["public"]["Tables"]["time_entries"]["Update"] = {};
+  if (patch.endedAt !== undefined) update.ended_at = patch.endedAt.toISOString();
+  if (patch.deletedAt !== undefined) update.deleted_at = patch.deletedAt.toISOString();
+  if (Object.keys(update).length === 0) return;
+  const { error } = await client.from("time_entries").update(update).eq("id", id);
   check(error);
 }

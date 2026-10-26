@@ -11,3 +11,4 @@ export * from "./views.ts";
 export { instantToLocal, localToInstant } from "./zoned.ts";
 export * from "./snooze.ts";
 export * from "./reminders.ts";
+export * from "./stats.ts";

@@ -28,6 +28,7 @@ import {
 } from "./icons";
 import { signOut } from "@/lib/offline";
 import { focusQuickAdd } from "./quick-add";
+import { RunningTimer } from "./running-timer";
 import { SyncStatus } from "./sync-status";
 import { TaskDetail } from "./task-detail";
 import { ThemeToggle } from "./theme-toggle";
@@ -245,6 +246,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             Members and invites
           </Link>
           <Link
+            href="/stats"
+            aria-current={pathname === "/stats" ? "page" : undefined}
+            onClick={() => setMenuOpen(false)}
+            className="rounded-sm px-2 py-1 text-left text-sm text-text-muted"
+          >
+            Stats
+          </Link>
+          <Link
             href="/activity"
             aria-current={pathname === "/activity" ? "page" : undefined}
             onClick={() => setMenuOpen(false)}
@@ -285,6 +294,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="font-semibold">Todo</span>
         </header>
         <SyncStatus />
+        <RunningTimer />
         {children}
       </div>
 

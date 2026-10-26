@@ -348,3 +348,23 @@ export function parseReminder(row: unknown): Reminder {
   const r = reminderRow.parse(row);
   return { taskId: r.task_id, offsetMin: r.offset_min, remindAt: r.remind_at, sent: r.sent_at !== null };
 }
+
+/** The signed-in user's tracked time on a task. A null `endedAt` is a timer that is still running. */
+export interface TimeEntry {
+  id: string;
+  taskId: string;
+  startedAt: Date;
+  endedAt: Date | null;
+}
+
+const timeEntryRow = z.object({
+  id,
+  task_id: id,
+  started_at: timestamp,
+  ended_at: timestamp.nullable(),
+});
+
+export function parseTimeEntry(row: unknown): TimeEntry {
+  const r = timeEntryRow.parse(row);
+  return { id: r.id, taskId: r.task_id, startedAt: r.started_at, endedAt: r.ended_at };
+}

@@ -21,6 +21,7 @@ import { useTaskSelection } from "@/lib/use-task-selection";
 import { CheckIcon, CloseIcon, SubtaskIcon, TrashIcon } from "./icons";
 import { TaskComments } from "./task-comments";
 import { TaskReminder } from "./task-reminder";
+import { TaskTimer } from "./task-timer";
 import { useToast } from "./toast";
 
 const PRIORITY_LABELS: Record<number, string> = {
@@ -446,6 +447,8 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
               </button>
             </form>
           </section>
+
+          <TaskTimer task={task} />
 
           <TaskComments taskId={task.id} />
 

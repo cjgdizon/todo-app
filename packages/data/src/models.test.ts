@@ -12,6 +12,7 @@ import {
   parseSavedFilter,
   parseSection,
   parseTask,
+  parseTimeEntry,
 } from "./models.ts";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -336,5 +337,28 @@ describe('parseReminder', () => {
 
   it('rejects a negative offset', () => {
     expect(() => parseReminder({ ...row, offset_min: -1 })).toThrow();
+  });
+});
+
+describe('parseTimeEntry', () => {
+  const row = { id: uuid(6), task_id: uuid(1), started_at: '2026-10-26T09:00:00+00:00', ended_at: null };
+
+  it('maps a running timer', () => {
+    expect(parseTimeEntry(row)).toEqual({
+      id: uuid(6),
+      taskId: uuid(1),
+      startedAt: new Date('2026-10-26T09:00:00Z'),
+      endedAt: null,
+    });
+  });
+
+  it('maps a finished one', () => {
+    expect(parseTimeEntry({ ...row, ended_at: '2026-10-26T09:25:00+00:00' }).endedAt).toEqual(
+      new Date('2026-10-26T09:25:00Z'),
+    );
+  });
+
+  it('rejects a row without a start', () => {
+    expect(() => parseTimeEntry({ ...row, started_at: undefined })).toThrow();
   });
 });
