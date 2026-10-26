@@ -6,6 +6,7 @@ export * from "./activity-text.ts";
 export * from "./reminder-text.ts";
 export * from "./reminder-hooks.ts";
 export * from "./time-hooks.ts";
+export * from "./attachment-hooks.ts";
 export * from "./models.ts";
 export { DataError, updateProfileTimeZone } from "./queries.ts";
 export type { TaskPatch } from "./queries.ts";

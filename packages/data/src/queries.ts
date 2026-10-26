@@ -1,8 +1,9 @@
-import type { Priority } from "@todo/core";
+import { attachmentPath, validateAttachment, type Priority } from "@todo/core";
 import type { TodoClient } from "./client.ts";
 import type { Database } from "./database.types.ts";
 import {
   parseActivity,
+  parseAttachment,
   parseComment,
   parseInvite,
   parseLabel,
@@ -17,6 +18,7 @@ import {
   parseTimeEntry,
   parseWorkspace,
   type Activity,
+  type Attachment,
   type Comment,
   type Invite,
   type Label,
@@ -699,4 +701,84 @@ export async function updateTimeEntry(
   if (Object.keys(update).length === 0) return;
   const { error } = await client.from("time_entries").update(update).eq("id", id);
   check(error);
+}
+
+const ATTACHMENT_BUCKET = "attachments";
+const DOWNLOAD_LINK_SECONDS = 60;
+
+export async function fetchAttachments(client: TodoClient, workspaceId: string, taskId: string): Promise<Attachment[]> {
+  const rows = await fetchAll((from, to) =>
+    client
+      .from("attachments")
+      .select("id,task_id,storage_path,file_name,mime_type,size_bytes,created_by,created_at")
+      .eq("workspace_id", workspaceId)
+      .eq("task_id", taskId)
+      .is("deleted_at", null)
+      .order("created_at")
+      .order("id")
+      .range(from, to),
+  );
+  return rows.map(parseAttachment);
+}
+
+/**
+ * Stores the file, then records it. In that order: a record never exists without its file, and if
+ * recording fails the file is taken out again. Needs a connection (file bytes are not queued offline).
+ */
+export async function uploadAttachment(
+  client: TodoClient,
+  upload: {
+    id: string;
+    workspaceId: string;
+    taskId: string;
+    userId: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    body: Blob | ArrayBuffer;
+  },
+): Promise<void> {
+  const problem = validateAttachment({ name: upload.fileName, size: upload.size });
+  if (problem) throw new DataError(problem);
+
+  const path = attachmentPath(upload.taskId, upload.id, upload.fileName);
+  const stored = await client.storage
+    .from(ATTACHMENT_BUCKET)
+    .upload(path, upload.body, { contentType: upload.mimeType || "application/octet-stream", upsert: false });
+  check(stored.error);
+
+  const { error } = await client.from("attachments").insert({
+    id: upload.id,
+    workspace_id: upload.workspaceId,
+    task_id: upload.taskId,
+    storage_path: path,
+    file_name: upload.fileName,
+    mime_type: upload.mimeType || null,
+    size_bytes: upload.size,
+    created_by: upload.userId,
+  });
+  if (error) {
+    await client.storage.from(ATTACHMENT_BUCKET).remove([path]); // best effort: nothing points at it
+    throw new DataError(error.message);
+  }
+}
+
+/** A link that works for a minute and downloads the file under its own name (never shows it inline). */
+export async function attachmentDownloadUrl(client: TodoClient, attachment: Attachment): Promise<string> {
+  const { data, error } = await client.storage
+    .from(ATTACHMENT_BUCKET)
+    .createSignedUrl(attachment.storagePath, DOWNLOAD_LINK_SECONDS, { download: attachment.fileName });
+  check(error);
+  if (!data?.signedUrl) throw new DataError("Could not make a download link");
+  return data.signedUrl;
+}
+
+/** Hides the record first (that is what the person sees), then removes the file as a best effort. */
+export async function removeAttachment(client: TodoClient, attachment: Attachment): Promise<void> {
+  const { error } = await client
+    .from("attachments")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", attachment.id);
+  check(error);
+  await client.storage.from(ATTACHMENT_BUCKET).remove([attachment.storagePath]);
 }

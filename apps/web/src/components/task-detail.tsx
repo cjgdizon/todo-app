@@ -19,6 +19,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type R
 import { describeRecurrence, presetFor, presetRule, PRESETS, type PresetValue } from "@todo/data";
 import { useTaskSelection } from "@/lib/use-task-selection";
 import { CheckIcon, CloseIcon, SubtaskIcon, TrashIcon } from "./icons";
+import { TaskAttachments } from "./task-attachments";
 import { TaskComments } from "./task-comments";
 import { TaskReminder } from "./task-reminder";
 import { TaskTimer } from "./task-timer";
@@ -449,6 +450,8 @@ function Drawer({ task, onClose }: { task: Task; onClose: () => void }) {
           </section>
 
           <TaskTimer task={task} />
+
+          <TaskAttachments taskId={task.id} />
 
           <TaskComments taskId={task.id} />
 

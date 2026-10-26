@@ -20,12 +20,14 @@ const TABLES = [
   ["activity_log", ["activity"]],
   ["reminders", ["reminders"]],
   ["time_entries", ["timeEntries"]],
+  ["attachments", ["attachments"]],
 ] as const;
 
-// Every comments query of the workspace (one per task) shares this prefix.
+// Every comments and attachments query of the workspace (one per task) shares these prefixes.
 const listKeys = {
   ...queryKeys,
   comments: (workspaceId: string) => ["comments", workspaceId] as const,
+  attachments: (workspaceId: string) => ["attachments", workspaceId] as const,
 };
 
 /**

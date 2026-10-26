@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseActivity,
+  parseAttachment,
   parseComment,
   parseInvite,
   parseLabel,
@@ -360,5 +361,41 @@ describe('parseTimeEntry', () => {
 
   it('rejects a row without a start', () => {
     expect(() => parseTimeEntry({ ...row, started_at: undefined })).toThrow();
+  });
+});
+
+describe("parseAttachment", () => {
+  const row = {
+    id: uuid(6),
+    task_id: uuid(1),
+    storage_path: `${uuid(1)}/${uuid(6)}-report.pdf`,
+    file_name: "report.pdf",
+    mime_type: "application/pdf",
+    size_bytes: 2048,
+    created_by: uuid(9),
+    created_at: "2026-10-27T09:00:00+00:00",
+  };
+
+  it("maps an attachment row", () => {
+    expect(parseAttachment(row)).toEqual({
+      id: uuid(6),
+      taskId: uuid(1),
+      storagePath: `${uuid(1)}/${uuid(6)}-report.pdf`,
+      fileName: "report.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      createdBy: uuid(9),
+      createdAt: new Date("2026-10-27T09:00:00Z"),
+    });
+  });
+
+  it("keeps a file whose type or uploader is unknown", () => {
+    const attachment = parseAttachment({ ...row, mime_type: null, created_by: null });
+    expect(attachment.mimeType).toBeNull();
+    expect(attachment.createdBy).toBeNull();
+  });
+
+  it("rejects a negative size", () => {
+    expect(() => parseAttachment({ ...row, size_bytes: -1 })).toThrow();
   });
 });

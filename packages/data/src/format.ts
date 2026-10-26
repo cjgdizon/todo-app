@@ -71,6 +71,20 @@ export function formatClock(milliseconds: number): string {
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
 }
 
+/** A file size for people: `800 B`, `1.5 KB`, `10 MB`. */
+export function formatBytes(bytes: number): string {
+  const size = Math.max(0, bytes);
+  if (size < 1024) return `${Math.round(size)} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = size / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${Number(value.toFixed(1))} ${units[unit]}`;
+}
+
 /** Tracked time in words: `5m`, `1h`, `1h 20m`. */
 export function formatMinutes(totalMinutes: number): string {
   const minutes = Math.max(0, Math.round(totalMinutes));

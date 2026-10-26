@@ -368,3 +368,41 @@ export function parseTimeEntry(row: unknown): TimeEntry {
   const r = timeEntryRow.parse(row);
   return { id: r.id, taskId: r.task_id, startedAt: r.started_at, endedAt: r.ended_at };
 }
+
+/** A file attached to a task. The bytes are in Storage at `storagePath`; this is the record of it. */
+export interface Attachment {
+  id: string;
+  taskId: string;
+  storagePath: string;
+  fileName: string;
+  mimeType: string | null;
+  sizeBytes: number;
+  /** Null once the uploader's account is deleted; the file stays. */
+  createdBy: string | null;
+  createdAt: Date;
+}
+
+const attachmentRow = z.object({
+  id,
+  task_id: id,
+  storage_path: z.string().min(1),
+  file_name: z.string().min(1),
+  mime_type: z.string().nullable(),
+  size_bytes: z.number().int().min(0),
+  created_by: id.nullable(),
+  created_at: timestamp,
+});
+
+export function parseAttachment(row: unknown): Attachment {
+  const r = attachmentRow.parse(row);
+  return {
+    id: r.id,
+    taskId: r.task_id,
+    storagePath: r.storage_path,
+    fileName: r.file_name,
+    mimeType: r.mime_type,
+    sizeBytes: r.size_bytes,
+    createdBy: r.created_by,
+    createdAt: r.created_at,
+  };
+}

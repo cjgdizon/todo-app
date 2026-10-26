@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClock, formatDue, formatMinutes } from "./format.ts";
+import { formatBytes, formatClock, formatDue, formatMinutes } from "./format.ts";
 
 // Tuesday 2026-10-20 18:00 in Manila (UTC+8).
 const ctx = { now: new Date("2026-10-20T10:00:00Z"), timeZone: "Asia/Manila" };
@@ -76,5 +76,19 @@ describe("formatMinutes", () => {
     [605, "10h 5m"],
   ])("shows %i minutes as %s", (minutes, text) => {
     expect(formatMinutes(minutes)).toBe(text);
+  });
+});
+
+describe("formatBytes", () => {
+  it.each([
+    [0, "0 B"],
+    [1023, "1023 B"],
+    [1024, "1 KB"],
+    [1536, "1.5 KB"],
+    [1024 * 1024, "1 MB"],
+    [10 * 1024 * 1024, "10 MB"],
+    [-5, "0 B"],
+  ])("shows %i bytes as %s", (bytes, text) => {
+    expect(formatBytes(bytes)).toBe(text);
   });
 });
