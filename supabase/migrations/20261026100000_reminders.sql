@@ -141,7 +141,13 @@ begin
   )
   select c.id, c.user_id, c.task_id, c.workspace_id, t.title, t.due_at, t.due_all_day,
          coalesce(t.due_tz, p.timezone),
-         coalesce((select array_agg(k.token order by k.token) from public.push_tokens k where k.user_id = c.user_id), '{}')
+         -- At most the person's 10 newest devices, whatever got into the table.
+         coalesce((
+           select array_agg(d.token order by d.token)
+           from (
+             select k.token from public.push_tokens k where k.user_id = c.user_id order by k.updated_at desc, k.token limit 10
+           ) d
+         ), '{}')
   from claimed c
   join public.tasks t on t.id = c.task_id and t.workspace_id = c.workspace_id
   join public.profiles p on p.id = c.user_id;

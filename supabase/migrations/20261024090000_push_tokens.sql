@@ -36,6 +36,13 @@ begin
   values (p_token, caller, p_platform)
   on conflict (token) do update
     set user_id = excluded.user_id, platform = excluded.platform, updated_at = now();
+  -- A person keeps their 10 newest devices. Without a cap one account could register thousands of
+  -- tokens and make every notification fan out to all of them.
+  delete from public.push_tokens
+  where user_id = caller
+    and token not in (
+      select k.token from public.push_tokens k where k.user_id = caller order by k.updated_at desc, k.token limit 10
+    );
 end;
 $$;
 

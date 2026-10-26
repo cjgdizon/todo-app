@@ -76,3 +76,18 @@ describe("push tokens", () => {
     expect(fk.rows.map((r) => r.confdeltype)).toEqual(["c"]);
   });
 });
+
+describe("push token limit", () => {
+  it("keeps only a person's 10 newest devices, so one account cannot fan notifications out", async () => {
+    const erin = await signUp(db, email("erin"));
+    const tokens = Array.from({ length: 12 }, (_, i) => `ExponentPushToken[device${String(i).padStart(2, "0")}xxxxxxxxxxxx]`);
+    for (const token of tokens) {
+      await asUser(db, erin, () => db.query("select public.register_push_token($1, 'android')", [token]));
+    }
+    const kept = (await db.query<{ token: string }>("select token from public.push_tokens where user_id = $1", [erin])).rows.map((r) => r.token);
+    expect(kept).toHaveLength(10);
+    expect(kept).not.toContain(tokens[0]);
+    expect(kept).not.toContain(tokens[1]);
+    expect(kept).toContain(tokens[11]);
+  });
+});

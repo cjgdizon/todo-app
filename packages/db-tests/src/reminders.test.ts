@@ -159,6 +159,18 @@ describe("claiming due reminders", () => {
     expect((await claim()).rows.filter((r) => r.task_id === task)).toHaveLength(0);
   });
 
+  it("sends to at most a person's 10 newest devices", async () => {
+    const { owner, task } = await dueReminder();
+    await db.query(
+      "insert into public.push_tokens (token, user_id, platform, updated_at) select 'ExponentPushToken[bulk' || lpad(i::text, 3, '0') || 'xxxxxxxxxx]', $1, 'android', now() - (i || ' minutes')::interval from generate_series(1, 12) as i",
+      [owner],
+    );
+    const row = (await claim()).rows.find((r) => r.task_id === task);
+    expect(row?.tokens).toHaveLength(10);
+    expect(row?.tokens).toContain("ExponentPushToken[bulk001xxxxxxxxxx]");
+    expect(row?.tokens).not.toContain("ExponentPushToken[bulk012xxxxxxxxxx]");
+  });
+
   it("skips reminders that are not due yet", async () => {
     const { owner, task } = await workspaceWithTask();
     await setDue(task, "2030-03-15T10:00:00Z");
