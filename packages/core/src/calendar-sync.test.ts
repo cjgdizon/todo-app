@@ -10,7 +10,9 @@ const task = (overrides: Partial<SyncTask> = {}): SyncTask => ({
   dueTz: "Asia/Manila",
   rrule: null,
   completedAt: null,
+  deletedAt: null,
   estimateMin: null,
+  version: 1,
   ...overrides,
 });
 
@@ -57,6 +59,7 @@ describe("taskToEvent", () => {
   it("has no event for a task without a due date or one that is done", () => {
     expect(taskToEvent(task({ dueAt: null }))).toBeNull();
     expect(taskToEvent(task({ completedAt: new Date("2030-03-15T05:00:00Z") }))).toBeNull();
+    expect(taskToEvent(task({ deletedAt: new Date("2030-03-15T05:00:00Z") }))).toBeNull();
   });
 
   it("keeps text within Google's limits", () => {

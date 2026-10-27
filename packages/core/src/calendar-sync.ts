@@ -6,7 +6,8 @@ import { instantToLocal, localToInstant, zoned } from "./zoned.ts";
  * do the talking to Google and the database, and call these to decide what to send or store.
  *
  * Rules (the defaults of the plan):
- * - A task is an event only while it has a due date and is not done; finishing it removes its event.
+ * - A task is an event only while it has a due date and is neither done nor deleted; finishing or
+ *   deleting it removes its event.
  * - A task with no estimate is a 30-minute event; an all-day task is an all-day event.
  * - An event cancelled in Google removes the task's due date (the task itself is never deleted).
  * - Everything that comes back from Google is untrusted: it is cut to the database's limits and
@@ -29,7 +30,10 @@ export interface SyncTask {
   dueTz: string | null;
   rrule: string | null;
   completedAt: Date | null;
+  deletedAt: Date | null;
   estimateMin: number | null;
+  /** The task's row version; it goes up with every change. */
+  version: number;
 }
 
 /** The parts of a Google event this app reads or writes. */
@@ -46,7 +50,7 @@ export interface GoogleEvent {
 
 /** The event to create or update for a task, or null when the task should have no event. */
 export function taskToEvent(task: SyncTask): GoogleEvent | null {
-  if (!task.dueAt || task.completedAt) return null;
+  if (!task.dueAt || task.completedAt || task.deletedAt) return null;
   const zone = task.dueTz ?? "UTC";
   const event: GoogleEvent = {
     summary: task.title,
