@@ -15,3 +15,4 @@ export * from "./stats.ts";
 export * from "./attachments.ts";
 export * from "./mentions.ts";
 export * from "./invite-token.ts";
+export * from "./calendar-sync.ts";
