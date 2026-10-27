@@ -99,6 +99,11 @@ test("a task can be assigned and discussed in comments", async ({ browser }) => 
     await expect(guest.getByText("Can you book a venue by Friday?")).toBeVisible();
     await expect(guest.getByText("(edited)")).toBeVisible();
 
+    // Naming someone with @ highlights them and tells them in the activity feed.
+    await owner.getByRole("textbox", { name: "Add a comment" }).fill(`@${guestName} can you confirm?`);
+    await owner.getByRole("button", { name: "Post comment" }).click();
+    await expect(owner.locator("strong", { hasText: `@${guestName}` })).toBeVisible();
+
     // The activity feed tells each person what happened, in their own terms.
     await owner.keyboard.press("Escape");
     await owner.getByRole("link", { name: "Activity" }).click();
@@ -108,6 +113,7 @@ test("a task can be assigned and discussed in comments", async ({ browser }) => 
     await guest.getByRole("link", { name: "Activity" }).click();
     await expect(guest.getByText(/assigned “Plan the offsite” to you$/)).toBeVisible();
     await expect(guest.getByText("You commented on “Plan the offsite”")).toBeVisible();
+    await expect(guest.getByText(/mentioned you in “Plan the offsite”/)).toBeVisible();
   } finally {
     await close();
   }

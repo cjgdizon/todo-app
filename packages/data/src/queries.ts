@@ -572,7 +572,7 @@ export async function revokeInvite(client: TodoClient, inviteId: string): Promis
   check(error);
 }
 
-const COMMENT_COLUMNS = "id,task_id,author_id,body,edited_at,created_at";
+const COMMENT_COLUMNS = "id,task_id,author_id,body,edited_at,mentions,created_at";
 
 export async function fetchComments(client: TodoClient, workspaceId: string, taskId: string): Promise<Comment[]> {
   const rows = await fetchAll((from, to) =>
@@ -591,7 +591,7 @@ export async function fetchComments(client: TodoClient, workspaceId: string, tas
 
 export async function insertComment(
   client: TodoClient,
-  comment: { id: string; workspaceId: string; taskId: string; authorId: string; body: string },
+  comment: { id: string; workspaceId: string; taskId: string; authorId: string; body: string; mentions: readonly string[] },
 ): Promise<void> {
   const { error } = await client.from("comments").insert({
     id: comment.id,
@@ -599,6 +599,7 @@ export async function insertComment(
     task_id: comment.taskId,
     author_id: comment.authorId,
     body: comment.body,
+    mentions: [...comment.mentions],
   });
   check(error);
 }
@@ -606,9 +607,10 @@ export async function insertComment(
 export async function updateComment(
   client: TodoClient,
   id: string,
-  patch: { body?: string; deletedAt?: Date | null },
+  patch: { body?: string; mentions?: readonly string[]; deletedAt?: Date | null },
 ): Promise<void> {
   const update: Database["public"]["Tables"]["comments"]["Update"] = {};
+  if (patch.mentions !== undefined) update.mentions = [...patch.mentions];
   if (patch.body !== undefined) {
     update.body = patch.body;
     update.edited_at = new Date().toISOString();

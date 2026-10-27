@@ -35,6 +35,11 @@ export function describeActivity(entry: Activity, context: ActivityContext): str
         : ((entry.assigneeId && context.names.get(entry.assigneeId)) || "a former member");
     return `${actor} assigned ${subject} to ${to}`;
   }
+  if (entry.action === "mentioned") {
+    const who =
+      entry.mentionedId === context.me ? "you" : ((entry.mentionedId && context.names.get(entry.mentionedId)) || "a former member");
+    return `${actor} mentioned ${who} in ${subject}`;
+  }
   const verb = VERBS[entry.action];
   return verb ? `${actor} ${verb} ${subject}` : `${actor} made a change`;
 }

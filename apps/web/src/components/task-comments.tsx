@@ -1,5 +1,6 @@
 "use client";
 
+import { findMentions, splitMentions } from "@todo/core";
 import {
   useAddComment,
   useComments,
@@ -8,6 +9,7 @@ import {
   useEditComment,
   useMembers,
   type Comment,
+  type Member,
 } from "@todo/data";
 import { useId, useState, type FormEvent } from "react";
 import { useToast } from "./toast";
@@ -30,7 +32,7 @@ export function TaskComments({ taskId }: { taskId: string }) {
     if (!text) return;
     setBody("");
     add.mutate(
-      { id: crypto.randomUUID(), body: text },
+      { id: crypto.randomUUID(), body: text, mentions: findMentions(text, members) },
       {
         onError: () => {
           setBody(text);
@@ -51,7 +53,13 @@ export function TaskComments({ taskId }: { taskId: string }) {
       ) : null}
       <ul className="divide-y divide-border">
         {(comments.data ?? []).map((comment) => (
-          <CommentItem key={comment.id} comment={comment} taskId={taskId} author={names.get(comment.authorId ?? "")} />
+          <CommentItem
+            key={comment.id}
+            comment={comment}
+            taskId={taskId}
+            author={names.get(comment.authorId ?? "")}
+            members={members}
+          />
         ))}
       </ul>
       <form onSubmit={onSubmit} className="mt-2 flex flex-col gap-2">
@@ -62,7 +70,7 @@ export function TaskComments({ taskId }: { taskId: string }) {
           id={inputId}
           className={field}
           rows={2}
-          placeholder="Add a comment"
+          placeholder="Add a comment. Use @name to mention someone."
           value={body}
           maxLength={MAX_COMMENT_LENGTH}
           onChange={(event) => setBody(event.target.value)}
@@ -79,7 +87,17 @@ export function TaskComments({ taskId }: { taskId: string }) {
   );
 }
 
-function CommentItem({ comment, taskId, author }: { comment: Comment; taskId: string; author: string | undefined }) {
+function CommentItem({
+  comment,
+  taskId,
+  author,
+  members,
+}: {
+  comment: Comment;
+  taskId: string;
+  author: string | undefined;
+  members: readonly Member[];
+}) {
   const { userId } = useData();
   const edit = useEditComment(taskId);
   const remove = useDeleteComment(taskId);
@@ -106,7 +124,7 @@ function CommentItem({ comment, taskId, author }: { comment: Comment; taskId: st
     if (!text) return;
     setEditing(false);
     if (text === comment.body) return;
-    edit.mutate({ id: comment.id, body: text }, { onError: () => notify("Couldn't save that edit.", { tone: "error" }) });
+    edit.mutate({ id: comment.id, body: text, mentions: findMentions(text, members) }, { onError: () => notify("Couldn't save that edit.", { tone: "error" }) });
   }
 
   return (
@@ -148,7 +166,17 @@ function CommentItem({ comment, taskId, author }: { comment: Comment; taskId: st
           </div>
         </form>
       ) : (
-        <p className="mt-1 whitespace-pre-wrap break-words">{comment.body}</p>
+        <p className="mt-1 whitespace-pre-wrap break-words">
+          {splitMentions(comment.body, members).map((part, index) =>
+            part.userId ? (
+              <strong key={index} className="font-semibold text-accent-strong">
+                {part.text}
+              </strong>
+            ) : (
+              part.text
+            ),
+          )}
+        </p>
       )}
       {mine && !editing ? (
         <div className="mt-1 flex gap-3 text-sm text-text-muted">

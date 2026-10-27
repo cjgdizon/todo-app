@@ -133,6 +133,7 @@ export type Database = {
       }
       comments: {
         Row: {
+          mentions: string[]
           author_id: string | null
           body: string
           created_at: string
@@ -146,6 +147,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          mentions?: string[]
           author_id?: string | null
           body: string
           created_at?: string
@@ -159,6 +161,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          mentions?: string[]
           author_id?: string | null
           body?: string
           created_at?: string

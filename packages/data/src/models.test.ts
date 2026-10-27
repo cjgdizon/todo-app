@@ -259,6 +259,7 @@ describe("collaboration rows", () => {
         author_id: uuid(9),
         body: "On it",
         edited_at: null,
+        mentions: [uuid(8)],
         created_at: "2026-10-24T10:00:00+00:00",
       }),
     ).toEqual({
@@ -267,6 +268,7 @@ describe("collaboration rows", () => {
       authorId: uuid(9),
       body: "On it",
       editedAt: null,
+      mentions: [uuid(8)],
       createdAt: new Date("2026-10-24T10:00:00Z"),
     });
   });
@@ -278,6 +280,7 @@ describe("collaboration rows", () => {
       author_id: null,
       body: "Left behind",
       edited_at: "2026-10-24T11:00:00+00:00",
+      mentions: [],
       created_at: "2026-10-24T10:00:00+00:00",
     });
     expect(comment.authorId).toBeNull();
@@ -305,13 +308,19 @@ describe('parseActivity', () => {
       taskId: uuid(1),
       title: 'Pay rent',
       assigneeId: uuid(8),
+      mentionedId: null,
       createdAt: new Date('2026-10-26T10:00:00Z'),
     });
   });
 
+  it('reads who was mentioned', () => {
+    const entry = parseActivity({ ...row, action: 'mentioned', meta: { title: 'Pay rent', user_id: uuid(7) } });
+    expect(entry.mentionedId).toBe(uuid(7));
+  });
+
   it('copes with a deleted actor and with missing or odd meta', () => {
     const entry = parseActivity({ ...row, actor_id: null, profiles: null, meta: 'odd', task_id: null });
-    expect(entry).toMatchObject({ actorId: null, actorName: null, taskId: null, title: null, assigneeId: null });
+    expect(entry).toMatchObject({ actorId: null, actorName: null, taskId: null, title: null, assigneeId: null, mentionedId: null });
   });
 });
 

@@ -10,6 +10,7 @@ const entry = (overrides: Partial<Activity>): Activity => ({
   taskId: "t1",
   title: "Pay rent",
   assigneeId: null,
+  mentionedId: null,
   createdAt: new Date("2026-10-26T10:00:00Z"),
   ...overrides,
 });
@@ -43,6 +44,12 @@ describe("describeActivity", () => {
     expect(describeActivity(entry({ action: "task_assigned", assigneeId: "gone" }), context)).toBe(
       "Ana assigned “Pay rent” to a former member",
     );
+  });
+
+  it("says who was mentioned, and 'you' for the reader", () => {
+    expect(describeActivity(entry({ action: "mentioned", mentionedId: "ben" }), context)).toBe("Ana mentioned you in “Pay rent”");
+    expect(describeActivity(entry({ action: "mentioned", mentionedId: "ana" }), context)).toBe("Ana mentioned Ana in “Pay rent”");
+    expect(describeActivity(entry({ action: "mentioned", mentionedId: null }), context)).toBe("Ana mentioned a former member in “Pay rent”");
   });
 
   it("says 'You' for the reader's own actions", () => {

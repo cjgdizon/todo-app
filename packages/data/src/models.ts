@@ -101,6 +101,8 @@ export interface Comment {
   authorId: string | null;
   body: string;
   editedAt: Date | null;
+  /** Members the comment names with @ (the database keeps only people in the workspace). */
+  mentions: string[];
   createdAt: Date;
 }
 
@@ -269,6 +271,7 @@ const commentRow = z.object({
   author_id: id.nullable(),
   body: z.string().min(1),
   edited_at: timestamp.nullable(),
+  mentions: z.array(id),
   created_at: timestamp,
 });
 
@@ -280,6 +283,7 @@ export function parseComment(row: unknown): Comment {
     authorId: r.author_id,
     body: r.body,
     editedAt: r.edited_at,
+    mentions: r.mentions,
     createdAt: r.created_at,
   };
 }
@@ -295,6 +299,8 @@ export interface Activity {
   /** The task's title when it happened; the task itself may have been renamed or deleted since. */
   title: string | null;
   assigneeId: string | null;
+  /** For a "mentioned" entry: who was mentioned. */
+  mentionedId: string | null;
   createdAt: Date;
 }
 
@@ -325,6 +331,7 @@ export function parseActivity(row: unknown): Activity {
     taskId: r.task_id,
     title: metaText(r.meta, "title"),
     assigneeId: metaText(r.meta, "assignee_id"),
+    mentionedId: metaText(r.meta, "user_id"),
     createdAt: r.created_at,
   };
 }

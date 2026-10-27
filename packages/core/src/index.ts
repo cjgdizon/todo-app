@@ -13,3 +13,4 @@ export * from "./snooze.ts";
 export * from "./reminders.ts";
 export * from "./stats.ts";
 export * from "./attachments.ts";
+export * from "./mentions.ts";

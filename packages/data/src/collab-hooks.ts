@@ -169,12 +169,19 @@ export function useAddComment(taskId: string) {
   const cache = useCommentsCache(taskId);
 
   return useMutation({
-    mutationFn: (variables: { id: string; body: string }) =>
-      insertComment(client, { id: variables.id, workspaceId, taskId, authorId: userId, body: variables.body }),
-    onMutate: ({ id, body }) =>
+    mutationFn: (variables: { id: string; body: string; mentions: readonly string[] }) =>
+      insertComment(client, {
+        id: variables.id,
+        workspaceId,
+        taskId,
+        authorId: userId,
+        body: variables.body,
+        mentions: variables.mentions,
+      }),
+    onMutate: ({ id, body, mentions }) =>
       cache.apply((comments) => [
         ...comments,
-        { id, taskId, authorId: userId, body, editedAt: null, createdAt: new Date() },
+        { id, taskId, authorId: userId, body, editedAt: null, mentions: [...mentions], createdAt: new Date() },
       ]),
     onError: (_error, _variables, context) => cache.rollback(context),
     onSettled: cache.settle,
@@ -187,10 +194,13 @@ export function useEditComment(taskId: string) {
   const cache = useCommentsCache(taskId);
 
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: string }) => updateComment(client, id, { body }),
-    onMutate: ({ id, body }) =>
+    mutationFn: ({ id, body, mentions }: { id: string; body: string; mentions: readonly string[] }) =>
+      updateComment(client, id, { body, mentions }),
+    onMutate: ({ id, body, mentions }) =>
       cache.apply((comments) =>
-        comments.map((comment) => (comment.id === id ? { ...comment, body, editedAt: new Date() } : comment)),
+        comments.map((comment) =>
+          comment.id === id ? { ...comment, body, mentions: [...mentions], editedAt: new Date() } : comment,
+        ),
       ),
     onError: (_error, _variables, context) => cache.rollback(context),
     onSettled: cache.settle,

@@ -124,3 +124,46 @@ describe("activity log", () => {
     expect((await log(ws)).length).toBe(before - 1);
   });
 });
+
+describe("comment mentions", () => {
+  const list = (ids: string[]) => `{${ids.join(",")}}`;
+  const mentionsOf = async (comment: string) =>
+    (await db.query<{ mentions: string[] }>("select mentions from public.comments where id = $1", [comment])).rows[0]?.mentions;
+
+  async function comment(author: string, ws: string, task: string, mentions: string[]) {
+    const res = await as(
+      author,
+      "insert into public.comments (workspace_id, task_id, body, mentions) values ($1, $2, 'look at this', $3::uuid[]) returning id",
+      [ws, task, list(mentions)],
+    );
+    return (res.rows[0] as { id: string }).id;
+  }
+
+  it("keeps only people who are in the workspace", async () => {
+    const { owner, member, ws } = await sharedWorkspace();
+    const outsider = await signUp(db, email("outsider"));
+    const task = await addTask(db, owner, ws, "Review");
+    const id = await comment(member, ws, task, [owner, outsider, owner]);
+    expect(await mentionsOf(id)).toEqual([owner]);
+
+    await as(member, "update public.comments set mentions = $2::uuid[] where id = $1", [id, list([outsider, member])]);
+    expect(await mentionsOf(id)).toEqual([member]);
+  });
+
+  it("tells each mentioned person in the activity feed, but not the author about themself", async () => {
+    const { owner, member, ws } = await sharedWorkspace();
+    const task = await addTask(db, owner, ws, "Review");
+    await comment(member, ws, task, [owner, member]);
+    const mentioned = (await log(ws)).filter((e) => e.action === "mentioned");
+    expect(mentioned).toEqual([
+      { action: "mentioned", actor_id: member, task_id: task, meta: { title: "Review", user_id: owner } },
+    ]);
+  });
+
+  it("does not log mentions when there are none", async () => {
+    const { owner, member, ws } = await sharedWorkspace();
+    const task = await addTask(db, owner, ws, "Review");
+    await comment(member, ws, task, []);
+    expect((await log(ws)).some((e) => e.action === "mentioned")).toBe(false);
+  });
+});
