@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CalendarSettings } from "@/components/calendar-settings";
 import { ImportExport } from "@/components/import-export";
 import { InstallApp } from "@/components/install-app";
 
@@ -10,6 +11,7 @@ export default function SettingsPage() {
     <main className="mx-auto w-full max-w-[720px] px-4 py-8">
       <h1 className="mb-4 text-[20px] leading-7 font-semibold">Settings</h1>
       <InstallApp />
+      <CalendarSettings />
       <ImportExport />
     </main>
   );

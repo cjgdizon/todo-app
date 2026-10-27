@@ -11,7 +11,10 @@ export const GOOGLE = {
   revoke: Deno.env.get("GOOGLE_REVOKE_URL") ?? "https://oauth2.googleapis.com/revoke",
   auth: Deno.env.get("GOOGLE_AUTH_URL") ?? "https://accounts.google.com/o/oauth2/v2/auth",
 };
-export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+// Least privilege: only calendars this app created (the dedicated Tasks one), never the person's own
+// calendars. If Google refuses an operation on it when first tried with a real account, this is the
+// first thing to check.
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
 
 const TIMEOUT_MS = 15_000;
 const PAGE_SIZE = 250;
@@ -120,6 +123,28 @@ export async function createTasksCalendar(accessToken: string, timeZone: string)
   });
   if (!response.ok) throw new GoogleError(response.status);
   return z.object({ id: z.string().min(1) }).parse(await response.json()).id;
+}
+
+/** The Google consent screen address for `state`. Asks for offline access so a refresh token comes back. */
+export function consentUrl(redirectUri: string, state: string): string {
+  const { clientId } = clientCredentials();
+  const query = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: CALENDAR_SCOPE,
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "false",
+    state,
+  });
+  return `${GOOGLE.auth}?${query}`;
+}
+
+/** Deletes a whole calendar (the dedicated Tasks one, with its events). Already gone counts as done. */
+export async function deleteCalendar(accessToken: string, calendarId: string): Promise<void> {
+  const response = await api(accessToken, `/calendars/${encodeURIComponent(calendarId)}`, { method: "DELETE" });
+  if (!response.ok && response.status !== 404 && response.status !== 410) throw new GoogleError(response.status);
 }
 
 /** One person's calendar as the sync engine sees it. */

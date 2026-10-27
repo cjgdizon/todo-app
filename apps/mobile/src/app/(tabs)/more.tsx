@@ -9,6 +9,7 @@ import {
   useStats,
 } from "@todo/data";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { CalendarSection } from "@/components/calendar-section";
 import { JoinSection } from "@/components/join-section";
 import { MembersSection } from "@/components/members-section";
 import { radius, space, TOUCH, useTheme } from "@/lib/theme";
@@ -60,6 +61,8 @@ export default function More() {
       <MembersSection />
 
       <JoinSection />
+
+      <CalendarSection />
 
       <View style={styles.section}>
         <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>

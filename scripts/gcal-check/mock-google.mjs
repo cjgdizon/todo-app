@@ -36,9 +36,14 @@ export function startMockGoogle(port) {
 
     if (url.pathname === "/token") {
       const form = new URLSearchParams(body);
+      if (form.get("grant_type") === "authorization_code") {
+        if (form.get("code") !== "good-code") return send(res, 400, { error: "invalid_grant" });
+        return send(res, 200, { access_token: "mock-access-token", refresh_token: "good-refresh-token", expires_in: 3600 });
+      }
       if (form.get("refresh_token") === "revoked-token") return send(res, 400, { error: "invalid_grant" });
       return send(res, 200, { access_token: "mock-access-token", expires_in: 3600 });
     }
+    if (url.pathname === "/revoke") return send(res, 200, {});
 
     // Test controls: what the person does in Google itself.
     if (url.pathname === "/_state") return send(res, 200, [...events.values()]);
@@ -49,6 +54,8 @@ export function startMockGoogle(port) {
     if (url.pathname.startsWith("/_requests")) return send(res, 200, requests.splice(0));
 
     if (req.headers.authorization !== "Bearer mock-access-token") return send(res, 401, { error: "unauthorized" });
+    if (url.pathname === "/calendar/v3/calendars" && req.method === "POST") return send(res, 200, { id: "cal-created" });
+    if (url.pathname.startsWith("/calendar/v3/calendars/") && !url.pathname.includes("/events") && req.method === "DELETE") return send(res, 204);
     const match = url.pathname.match(/^\/calendar\/v3\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/);
     if (!match) return send(res, 404, { error: "not found" });
     const id = match[2] ? decodeURIComponent(match[2]) : null;

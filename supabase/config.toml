@@ -392,6 +392,11 @@ verify_jwt = false
 [functions.gcal-sync]
 verify_jwt = false
 
+# Google sends the browser back to gcal-connect with no login, so the platform cannot check a JWT;
+# the POST that starts the flow checks the caller itself, and the return is checked by its signed state.
+[functions.gcal-connect]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

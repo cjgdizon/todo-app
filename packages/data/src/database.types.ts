@@ -131,6 +131,66 @@ export type Database = {
           },
         ]
       }
+      calendar_integrations: {
+        Row: {
+          calendar_id: string | null
+          created_at: string
+          enabled: boolean
+          last_synced_at: string | null
+          status: string
+          status_detail: string | null
+          sync_token: string | null
+          updated_at: string
+          user_id: string
+          vault_secret_id: string | null
+          watch_channel_id: string | null
+          watch_expires_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          calendar_id?: string | null
+          created_at?: string
+          enabled?: boolean
+          last_synced_at?: string | null
+          status?: string
+          status_detail?: string | null
+          sync_token?: string | null
+          updated_at?: string
+          user_id: string
+          vault_secret_id?: string | null
+          watch_channel_id?: string | null
+          watch_expires_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          calendar_id?: string | null
+          created_at?: string
+          enabled?: boolean
+          last_synced_at?: string | null
+          status?: string
+          status_detail?: string | null
+          sync_token?: string | null
+          updated_at?: string
+          user_id?: string
+          vault_secret_id?: string | null
+          watch_channel_id?: string | null
+          watch_expires_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      calendar_sync_queue: {
+        Row: { id: number; queued_at: string; task_id: string; user_id: string; workspace_id: string }
+        Insert: { id?: number; queued_at?: string; task_id: string; user_id: string; workspace_id: string }
+        Update: { id?: number; queued_at?: string; task_id?: string; user_id?: string; workspace_id?: string }
+        Relationships: []
+      }
+      task_calendar_links: {
+        Row: { etag: string | null; google_event_id: string; last_synced_version: number; task_id: string; user_id: string; workspace_id: string }
+        Insert: { etag?: string | null; google_event_id: string; last_synced_version?: number; task_id: string; user_id: string; workspace_id: string }
+        Update: { etag?: string | null; google_event_id?: string; last_synced_version?: number; task_id?: string; user_id?: string; workspace_id?: string }
+        Relationships: []
+      }
       comments: {
         Row: {
           mentions: string[]

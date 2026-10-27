@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseActivity,
+  parseCalendarIntegration,
   parseAttachment,
   parseComment,
   parseInvite,
@@ -406,5 +407,38 @@ describe("parseAttachment", () => {
 
   it("rejects a negative size", () => {
     expect(() => parseAttachment({ ...row, size_bytes: -1 })).toThrow();
+  });
+});
+
+describe("parseCalendarIntegration", () => {
+  const row = {
+    user_id: uuid(9),
+    workspace_id: uuid(5),
+    enabled: true,
+    calendar_id: "cal-1",
+    last_synced_at: "2026-10-27T09:00:00+00:00",
+    status: "active",
+    status_detail: null,
+  };
+
+  it("maps a connected calendar", () => {
+    expect(parseCalendarIntegration(row)).toEqual({
+      workspaceId: uuid(5),
+      enabled: true,
+      status: "active",
+      statusDetail: null,
+      lastSyncedAt: new Date("2026-10-27T09:00:00Z"),
+    });
+  });
+
+  it("maps one that has not synced yet, and one with a problem", () => {
+    const fresh = parseCalendarIntegration({ ...row, last_synced_at: null });
+    expect(fresh.lastSyncedAt).toBeNull();
+    const broken = parseCalendarIntegration({ ...row, enabled: false, status: "revoked", status_detail: "Google access was removed." });
+    expect(broken).toMatchObject({ enabled: false, status: "revoked", statusDetail: "Google access was removed." });
+  });
+
+  it("rejects a status it does not know", () => {
+    expect(() => parseCalendarIntegration({ ...row, status: "weird" })).toThrow();
   });
 });

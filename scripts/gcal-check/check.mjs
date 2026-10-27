@@ -1,4 +1,4 @@
-/* global console, fetch, setTimeout */
+/* global console, fetch, setTimeout, URL */
 // End-to-end check of the calendar sync, with no real Google involved. It starts a stand-in Google
 // (mock-google.mjs), serves the real `gcal-sync` Edge Function in the local Supabase runtime,
 // seeds a throwaway user in the LOCAL database, and walks through the plan's scenario:
@@ -53,6 +53,11 @@ writeFileSync(
     "GOOGLE_CLIENT_SECRET=check-secret",
     `GOOGLE_API_BASE=${MOCK_FROM_DOCKER}/calendar/v3`,
     `GOOGLE_TOKEN_URL=${MOCK_FROM_DOCKER}/token`,
+    `GOOGLE_REVOKE_URL=${MOCK_FROM_DOCKER}/revoke`,
+    `GOOGLE_AUTH_URL=${MOCK}/auth`,
+    "GCAL_RETURN_URL=http://localhost:3000/settings",
+    "GCAL_REDIRECT_URI=http://127.0.0.1:54321/functions/v1/gcal-connect",
+    `GCAL_STATE_SECRET=${randomBytes(24).toString("hex")}`,
   ].join("\n"),
 );
 const serve = spawn("pnpm", ["exec", "supabase", "functions", "serve", "--env-file", envFile], { cwd: repoRoot, shell: true, stdio: "ignore" });
@@ -152,6 +157,72 @@ try {
 
   psql(`select public.disconnect_calendar('${userId}')`);
   expect("disconnecting removes the integration and its stored token", psql(`select count(*) from public.calendar_integrations where user_id = '${userId}'`) === "0");
+  // --- connecting and disconnecting through the real functions ----------------------------------
+  const keys = JSON.parse(execFileSync("pnpm", ["exec", "supabase", "status", "-o", "json"], { cwd: repoRoot, shell: true }).toString());
+  const publishable = keys.PUBLISHABLE_KEY ?? keys.ANON_KEY;
+  const email = `gcal-connect-${randomBytes(4).toString("hex")}@example.test`;
+  const signUp = await fetch("http://127.0.0.1:54321/auth/v1/signup", {
+    method: "POST",
+    headers: { apikey: publishable, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: `pw-${randomBytes(12).toString("hex")}` }),
+  }).then((r) => r.json());
+  const jwt = signUp.access_token;
+  const person = signUp.user?.id;
+  const personWs = psql(`select id from public.workspaces where owner_id = '${person}'`);
+  const CONNECT_URL = "http://127.0.0.1:54321/functions/v1/gcal-connect";
+  const DISCONNECT_URL = "http://127.0.0.1:54321/functions/v1/gcal-disconnect";
+  const post = (url, body, token = jwt) =>
+    fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+  const integration = () => psql(`select count(*) from public.calendar_integrations where user_id = '${person}'`);
+  const callback = (query) => fetch(`${CONNECT_URL}?${query}`, { redirect: "manual" });
+  const startFlow = async () => new URL((await (await post(CONNECT_URL, { workspaceId: personWs })).json()).url);
+
+  expect("a signed-in test user exists", Boolean(jwt && person && personWs));
+  expect("starting the flow needs a login", (await post(CONNECT_URL, { workspaceId: personWs }, null)).status === 401);
+  expect("and a workspace the person belongs to", (await post(CONNECT_URL, { workspaceId: ws })).status === 403);
+  expect("and a valid workspace id", (await post(CONNECT_URL, { workspaceId: "not-a-uuid" })).status === 400);
+
+  const consent = await startFlow();
+  expect("it returns Google's consent address, asking for the calendar and a refresh token",
+    consent.origin + consent.pathname === `${MOCK}/auth` && consent.searchParams.get("scope")?.includes("calendar") && consent.searchParams.get("access_type") === "offline" && consent.searchParams.get("client_id") === "check-client",
+    consent.toString());
+  const state = consent.searchParams.get("state") ?? "";
+
+  expect("a tampered state is refused", (await callback(`code=good-code&state=${state.slice(0, -3)}AAA`)).status === 400);
+  expect("a missing state is refused", (await callback("code=good-code")).status === 400);
+  expect("nothing was connected by those", integration() === "0");
+
+  const denied = await callback(`error=access_denied&state=${state}`);
+  expect("declining on Google's screen returns to the app with a clear outcome", denied.status === 302 && denied.headers.get("location")?.includes("calendar=denied") === true);
+  const badCode = await callback(`code=bad-code&state=${(await startFlow()).searchParams.get("state")}`);
+  expect("a code Google rejects fails safely", badCode.status === 302 && badCode.headers.get("location")?.includes("calendar=failed") === true && integration() === "0");
+
+  await googleRequests();
+  const done = await callback(`code=good-code&state=${(await startFlow()).searchParams.get("state")}`);
+  const target = done.headers.get("location") ?? "";
+  expect("a good return connects and goes back to the app at the configured address", done.status === 302 && target.startsWith("http://localhost:3000/settings") && target.includes("calendar=connected"), target);
+  expect("the dedicated calendar was made and the person is connected", integration() === "1" && psql(`select calendar_id || ',' || enabled::text from public.calendar_integrations where user_id = '${person}'`) === "cal-created,true");
+  const created = (await googleRequests()).filter((r) => r === "POST /calendar/v3/calendars").length;
+  expect("exactly one calendar was created", created === 1, String(created));
+
+  psql(`insert into public.tasks (workspace_id, title, position, created_by, due_at, due_tz) values ('${personWs}', 'After connecting', 'a0', '${person}', '2030-04-01T01:00:00Z', 'UTC')`);
+  await run();
+  expect("after connecting, the person's tasks are synced", (await googleState()).some((e) => e.summary === "After connecting"));
+
+  await googleRequests();
+  await callback(`code=good-code&state=${(await startFlow()).searchParams.get("state")}`);
+  expect("connecting again keeps the same calendar", (await googleRequests()).filter((r) => r === "POST /calendar/v3/calendars").length === 0 && integration() === "1");
+
+  expect("disconnecting needs a login", (await post(DISCONNECT_URL, { removeEvents: false }, null)).status === 401);
+  const kept = await (await post(DISCONNECT_URL, { removeEvents: false })).json();
+  expect("disconnecting can keep the events in Google", kept.disconnected === true && kept.removedEvents === false && integration() === "0" && (await googleRequests()).every((r) => !r.startsWith("DELETE /calendar/v3/calendars/cal-created") || r.includes("/events")));
+
+  await callback(`code=good-code&state=${(await startFlow()).searchParams.get("state")}`);
+  await googleRequests();
+  const removed = await (await post(DISCONNECT_URL, { removeEvents: true })).json();
+  const removalCalls = await googleRequests();
+  expect("or remove them, by deleting the dedicated calendar and revoking access", removed.removedEvents === true && removalCalls.includes("DELETE /calendar/v3/calendars/cal-created") && removalCalls.includes("POST /revoke") && integration() === "0", removalCalls.join(","));
+  expect("and no token is left behind", psql("select count(*) from vault.secrets where description = 'Google Calendar refresh token'") === "0");
 } finally {
   cleanup();
 }

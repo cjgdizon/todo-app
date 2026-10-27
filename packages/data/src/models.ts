@@ -413,3 +413,32 @@ export function parseAttachment(row: unknown): Attachment {
     createdAt: r.created_at,
   };
 }
+
+/** The signed-in user's Google Calendar connection. The token and sync cursor are never readable by the app. */
+export interface CalendarIntegration {
+  workspaceId: string;
+  enabled: boolean;
+  status: "active" | "error" | "revoked";
+  /** A plain-language problem to show, when `status` is not active. */
+  statusDetail: string | null;
+  lastSyncedAt: Date | null;
+}
+
+const calendarIntegrationRow = z.object({
+  workspace_id: id,
+  enabled: z.boolean(),
+  status: z.enum(["active", "error", "revoked"]),
+  status_detail: z.string().nullable(),
+  last_synced_at: timestamp.nullable(),
+});
+
+export function parseCalendarIntegration(row: unknown): CalendarIntegration {
+  const r = calendarIntegrationRow.parse(row);
+  return {
+    workspaceId: r.workspace_id,
+    enabled: r.enabled,
+    status: r.status,
+    statusDetail: r.status_detail,
+    lastSyncedAt: r.last_synced_at,
+  };
+}

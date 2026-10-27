@@ -4,6 +4,7 @@ import type { Database } from "./database.types.ts";
 import {
   parseActivity,
   parseAttachment,
+  parseCalendarIntegration,
   parseComment,
   parseInvite,
   parseLabel,
@@ -19,6 +20,7 @@ import {
   parseWorkspace,
   type Activity,
   type Attachment,
+  type CalendarIntegration,
   type Comment,
   type Invite,
   type Label,
@@ -783,4 +785,29 @@ export async function removeAttachment(client: TodoClient, attachment: Attachmen
     .eq("id", attachment.id);
   check(error);
   await client.storage.from(ATTACHMENT_BUCKET).remove([attachment.storagePath]);
+}
+
+/** The signed-in user's calendar connection, or null when they have none (rows are theirs alone). */
+export async function fetchCalendarIntegration(client: TodoClient): Promise<CalendarIntegration | null> {
+  const { data, error } = await client
+    .from("calendar_integrations")
+    .select("workspace_id,enabled,status,status_detail,last_synced_at")
+    .maybeSingle();
+  check(error);
+  return data ? parseCalendarIntegration(data) : null;
+}
+
+/** Asks the server for the Google consent address; the app then sends the browser there. Needs a connection. */
+export async function startCalendarConnection(client: TodoClient, workspaceId: string): Promise<string> {
+  const { data, error } = await client.functions.invoke("gcal-connect", { body: { workspaceId } });
+  if (error) throw new DataError("Couldn't start the connection with Google");
+  const url = (data as { url?: unknown } | null)?.url;
+  if (typeof url !== "string") throw new DataError("Couldn't start the connection with Google");
+  return url;
+}
+
+/** Disconnects. With `removeEvents` the Tasks calendar is deleted from Google too; otherwise its events stay. */
+export async function disconnectCalendar(client: TodoClient, removeEvents: boolean): Promise<void> {
+  const { error } = await client.functions.invoke("gcal-disconnect", { body: { removeEvents } });
+  if (error) throw new DataError("Couldn't disconnect from Google");
 }
