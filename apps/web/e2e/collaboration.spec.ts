@@ -1,5 +1,5 @@
-import { expect, test, type Browser, type Page } from "@playwright/test";
-import { addTask, openTask, signUp, submitSignUp, taskRow, watchWrites } from "./helpers";
+import { expect, test } from "@playwright/test";
+import { addTask, openTask, sharedWorkspace, signUp, submitSignUp, taskRow, watchWrites } from "./helpers";
 
 test("an invited person joins a workspace and both see each other's changes live", async ({ browser }) => {
   const ownerContext = await browser.newContext();
@@ -50,22 +50,6 @@ test("an invited person joins a workspace and both see each other's changes live
     await guestContext.close();
   }
 });
-
-/** An owner and a guest who joined the owner's workspace through an invite link. */
-async function sharedWorkspace(browser: Browser) {
-  const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
-  const [owner, guest] = (await Promise.all(contexts.map((context) => context.newPage()))) as [Page, Page];
-  await signUp(owner);
-  await owner.getByRole("link", { name: "Members and invites" }).click();
-  await owner.getByRole("button", { name: "Create invite link" }).click();
-  const link = await owner.getByLabel("Invite link (shown once)").inputValue();
-  await signUp(guest);
-  await guest.goto(link);
-  await guest.getByRole("button", { name: "Join workspace" }).click();
-  await expect(guest).toHaveURL(/\/inbox/);
-  await owner.getByRole("link", { name: "Inbox" }).click();
-  return { owner, guest, close: () => Promise.all(contexts.map((context) => context.close())) };
-}
 
 test("a task can be assigned and discussed in comments", async ({ browser }) => {
   const { owner, guest, close } = await sharedWorkspace(browser);

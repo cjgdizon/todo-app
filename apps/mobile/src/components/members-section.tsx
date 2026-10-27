@@ -6,6 +6,7 @@ import {
   useMembers,
   useRemoveMember,
   useRevokeInvite,
+  useTransferWorkspace,
   type Member,
   type WorkspaceRole,
 } from "@todo/data";
@@ -32,20 +33,35 @@ export function MembersSection() {
         Members
       </Text>
       {members.map((member) => (
-        <MemberRow key={member.userId} member={member} isMe={member.userId === userId} canManage={canManage} />
+        <MemberRow key={member.userId} member={member} isMe={member.userId === userId} canManage={canManage} isOwner={isOwner} />
       ))}
       {canManage ? <Invites isOwner={isOwner} /> : null}
     </View>
   );
 }
 
-function MemberRow({ member, isMe, canManage }: { member: Member; isMe: boolean; canManage: boolean }) {
+function MemberRow({ member, isMe, canManage, isOwner }: { member: Member; isMe: boolean; canManage: boolean; isOwner: boolean }) {
   const theme = useTheme();
   const { notify } = useNotice();
   const { userId } = useData();
   const remove = useRemoveMember();
+  const transfer = useTransferWorkspace();
   const canRemove = canManage && member.role !== "owner" && !isMe;
   const canLeave = isMe && member.role !== "owner";
+
+  function confirmMakeOwner() {
+    Alert.alert(`Make ${member.displayName} the owner?`, "You will become an admin of this workspace.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Make owner",
+        onPress: () =>
+          transfer.mutate(member.userId, {
+            onSuccess: () => notify(`${member.displayName} is now the owner.`),
+            onError: () => notify("Couldn't hand over the workspace. Try again.", { tone: "error" }),
+          }),
+      },
+    ]);
+  }
 
   function confirmRemove() {
     const title = isMe ? "Leave this workspace?" : `Remove ${member.displayName}?`;
@@ -71,6 +87,11 @@ function MemberRow({ member, isMe, canManage }: { member: Member; isMe: boolean;
         {isMe ? " (you)" : ""}
       </Text>
       <Text style={{ color: theme["text-muted"] }}>{ROLE_LABEL[member.role]}</Text>
+      {isOwner && member.role !== "owner" && !isMe ? (
+        <Pressable accessibilityRole="button" accessibilityLabel={`Make ${member.displayName} the owner`} onPress={confirmMakeOwner} style={styles.link}>
+          <Text style={{ color: theme.accent }}>Make owner</Text>
+        </Pressable>
+      ) : null}
       {canRemove || canLeave ? (
         <Pressable
           accessibilityRole="button"

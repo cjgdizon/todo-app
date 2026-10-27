@@ -1,4 +1,4 @@
-import { expect, type Page, type Request } from "@playwright/test";
+import { expect, type Browser, type Page, type Request } from "@playwright/test";
 import { randomBytes } from "node:crypto";
 
 /** Fills the sign-up form on the login page the browser is already on. */
@@ -85,4 +85,20 @@ export function taskRow(page: Page, title: string) {
 export async function openTask(page: Page, title: string): Promise<void> {
   await page.getByRole("button", { name: title, exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Task details" })).toBeVisible();
+}
+
+/** An owner and a guest who joined the owner's workspace through an invite link. */
+export async function sharedWorkspace(browser: Browser) {
+  const contexts = await Promise.all([browser.newContext(), browser.newContext()]);
+  const [owner, guest] = (await Promise.all(contexts.map((context) => context.newPage()))) as [Page, Page];
+  await signUp(owner);
+  await owner.getByRole("link", { name: "Members and invites" }).click();
+  await owner.getByRole("button", { name: "Create invite link" }).click();
+  const link = await owner.getByLabel("Invite link (shown once)").inputValue();
+  await signUp(guest);
+  await guest.goto(link);
+  await guest.getByRole("button", { name: "Join workspace" }).click();
+  await expect(guest).toHaveURL(/\/inbox/);
+  await owner.getByRole("link", { name: "Inbox" }).click();
+  return { owner, guest, close: () => Promise.all(contexts.map((context) => context.close())) };
 }

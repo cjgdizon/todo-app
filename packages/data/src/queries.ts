@@ -6,6 +6,7 @@ import {
   parseAttachment,
   parseCalendarIntegration,
   parseComment,
+  parseDeletionBlocker,
   parseInvite,
   parseLabel,
   parseMember,
@@ -22,6 +23,7 @@ import {
   type Attachment,
   type CalendarIntegration,
   type Comment,
+  type DeletionBlocker,
   type Invite,
   type Label,
   type Member,
@@ -810,4 +812,34 @@ export async function startCalendarConnection(client: TodoClient, workspaceId: s
 export async function disconnectCalendar(client: TodoClient, removeEvents: boolean): Promise<void> {
   const { error } = await client.functions.invoke("gcal-disconnect", { body: { removeEvents } });
   if (error) throw new DataError("Couldn't disconnect from Google");
+}
+
+/** Shared workspaces the signed-in person still owns, which stop them deleting their account. */
+export async function fetchDeletionBlockers(client: TodoClient): Promise<DeletionBlocker[]> {
+  const { data, error } = await client.rpc("account_deletion_blockers");
+  check(error);
+  return (data ?? []).map(parseDeletionBlocker);
+}
+
+export const DELETE_ACCOUNT_CONFIRMATION = "delete my account";
+
+/** The plain-language reason a server function gave when it refused, if it gave one. */
+async function functionReason(error: unknown): Promise<string | null> {
+  const response = (error as { context?: unknown } | null)?.context;
+  if (!(response instanceof Response)) return null;
+  const body: unknown = await response.json().catch(() => null);
+  const reason = body && typeof body === "object" ? (body as { error?: unknown }).error : null;
+  return typeof reason === "string" ? reason : null;
+}
+
+/** Deletes the signed-in person's account. The server checks the typed confirmation again. Needs a connection. */
+export async function deleteAccount(client: TodoClient, confirmation: string): Promise<void> {
+  const { error } = await client.functions.invoke("delete-account", { body: { confirm: confirmation } });
+  if (error) throw new DataError((await functionReason(error)) ?? "Couldn't delete the account");
+}
+
+/** Hands a workspace to another member; the previous owner becomes an admin. */
+export async function transferWorkspace(client: TodoClient, workspaceId: string, newOwnerId: string): Promise<void> {
+  const { error } = await client.rpc("transfer_workspace", { ws: workspaceId, new_owner: newOwnerId });
+  check(error);
 }

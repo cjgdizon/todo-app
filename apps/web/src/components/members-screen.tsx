@@ -9,6 +9,7 @@ import {
   useRemoveMember,
   useRevokeInvite,
   useSetMemberRole,
+  useTransferWorkspace,
   type Member,
   type WorkspaceRole,
 } from "@todo/data";
@@ -72,11 +73,20 @@ function MemberRow({
   const { userId } = useData();
   const setRole = useSetMemberRole();
   const remove = useRemoveMember();
+  const transfer = useTransferWorkspace();
   const { notify } = useToast();
   const roleId = useId();
   const canChangeRole = isOwner && member.role !== "owner" && !isMe;
   const canRemove = canManage && member.role !== "owner" && !isMe;
   const canLeave = isMe && member.role !== "owner";
+
+  function onMakeOwner() {
+    if (!window.confirm(`Make ${member.displayName} the owner of this workspace? You will become an admin.`)) return;
+    transfer.mutate(member.userId, {
+      onSuccess: () => notify(`${member.displayName} is now the owner.`),
+      onError: () => notify("Couldn't hand over the workspace. Try again.", { tone: "error" }),
+    });
+  }
 
   function onRemove() {
     const prompt = isMe
@@ -120,6 +130,16 @@ function MemberRow({
       ) : (
         <span className="text-sm text-text-muted">{ROLE_LABEL[member.role]}</span>
       )}
+      {canChangeRole ? (
+        <button
+          type="button"
+          onClick={onMakeOwner}
+          aria-label={`Make ${member.displayName} the owner`}
+          className="rounded-sm px-2 py-1 text-sm text-accent-strong underline"
+        >
+          Make owner
+        </button>
+      ) : null}
       {canRemove || canLeave ? (
         <button
           type="button"

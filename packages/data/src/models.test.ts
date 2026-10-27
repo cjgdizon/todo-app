@@ -4,6 +4,7 @@ import {
   parseCalendarIntegration,
   parseAttachment,
   parseComment,
+  parseDeletionBlocker,
   parseInvite,
   parseLabel,
   parseMember,
@@ -440,5 +441,23 @@ describe("parseCalendarIntegration", () => {
 
   it("rejects a status it does not know", () => {
     expect(() => parseCalendarIntegration({ ...row, status: "weird" })).toThrow();
+  });
+});
+
+describe("parseDeletionBlocker", () => {
+  it("maps a shared workspace the person still owns", () => {
+    expect(parseDeletionBlocker({ workspace_id: uuid(5), name: "Team", member_count: 3 })).toEqual({
+      workspaceId: uuid(5),
+      name: "Team",
+      memberCount: 3,
+    });
+  });
+
+  it("accepts the count as text, which is how large counts can arrive", () => {
+    expect(parseDeletionBlocker({ workspace_id: uuid(5), name: "Team", member_count: "12" }).memberCount).toBe(12);
+  });
+
+  it("rejects a row without a workspace", () => {
+    expect(() => parseDeletionBlocker({ name: "Team", member_count: 2 })).toThrow();
   });
 });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AccountDeletion } from "@/components/account-deletion";
 import { CalendarSettings } from "@/components/calendar-settings";
 import { ImportExport } from "@/components/import-export";
 import { InstallApp } from "@/components/install-app";
@@ -13,6 +14,7 @@ export default function SettingsPage() {
       <InstallApp />
       <CalendarSettings />
       <ImportExport />
+      <AccountDeletion />
     </main>
   );
 }

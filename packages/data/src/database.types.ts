@@ -980,6 +980,10 @@ export type Database = {
         Args: { invite_token: string }
         Returns: string
       }
+      account_deletion_blockers: {
+        Args: Record<PropertyKey, never>
+        Returns: { member_count: number; name: string; workspace_id: string }[]
+      }
       clear_task_reminder: {
         Args: { p_task: string }
         Returns: undefined

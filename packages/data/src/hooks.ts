@@ -62,6 +62,7 @@ export const queryKeys = {
   memberships: (userId: string) => ["memberships", userId] as const,
   members: (workspaceId: string) => ["members", workspaceId] as const,
   invites: (workspaceId: string) => ["invites", workspaceId] as const,
+  deletionBlockers: (userId: string) => ["deletionBlockers", userId] as const,
   calendarIntegration: (userId: string) => ["calendarIntegration", userId] as const,
   attachments: (workspaceId: string, taskId: string) => ["attachments", workspaceId, taskId] as const,
   timeEntries: (workspaceId: string) => ["timeEntries", workspaceId] as const,

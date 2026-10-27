@@ -9,6 +9,7 @@ import {
   useStats,
 } from "@todo/data";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { AccountSection } from "@/components/account-section";
 import { CalendarSection } from "@/components/calendar-section";
 import { JoinSection } from "@/components/join-section";
 import { MembersSection } from "@/components/members-section";
@@ -91,6 +92,8 @@ export default function More() {
           ))
         )}
       </View>
+      <AccountSection />
+
     </ScrollView>
   );
 }

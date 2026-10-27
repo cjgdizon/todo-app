@@ -442,3 +442,21 @@ export function parseCalendarIntegration(row: unknown): CalendarIntegration {
     lastSyncedAt: r.last_synced_at,
   };
 }
+
+/** A shared workspace the person owns: it must be handed to someone else before they can delete their account. */
+export interface DeletionBlocker {
+  workspaceId: string;
+  name: string;
+  memberCount: number;
+}
+
+const deletionBlockerRow = z.object({
+  workspace_id: id,
+  name: z.string(),
+  member_count: z.coerce.number().int().min(1),
+});
+
+export function parseDeletionBlocker(row: unknown): DeletionBlocker {
+  const r = deletionBlockerRow.parse(row);
+  return { workspaceId: r.workspace_id, name: r.name, memberCount: r.member_count };
+}
