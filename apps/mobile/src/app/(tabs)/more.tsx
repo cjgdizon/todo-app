@@ -9,6 +9,8 @@ import {
   useStats,
 } from "@todo/data";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { JoinSection } from "@/components/join-section";
+import { MembersSection } from "@/components/members-section";
 import { radius, space, TOUCH, useTheme } from "@/lib/theme";
 
 const WEEK = 7;
@@ -54,6 +56,10 @@ export default function More() {
           </View>
         </View>
       ) : null}
+
+      <MembersSection />
+
+      <JoinSection />
 
       <View style={styles.section}>
         <Text accessibilityRole="header" style={[styles.heading, { color: theme.text }]}>
