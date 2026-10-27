@@ -13,7 +13,10 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNotice } from "@/components/notice";
+import { AssigneeChips } from "@/components/assignee-chips";
 import { ReminderChips } from "@/components/reminder-chips";
+import { TaskComments } from "@/components/task-comments";
+import { TaskTimer } from "@/components/task-timer";
 import { radius, space, TOUCH, useTheme } from "@/lib/theme";
 
 export default function TaskScreen() {
@@ -169,6 +172,12 @@ function Details({ task }: { task: Task }) {
       )}
 
       <ReminderChips task={task} />
+
+      <AssigneeChips task={task} />
+
+      <TaskTimer task={task} />
+
+      <TaskComments taskId={task.id} />
 
       <View style={styles.actions}>
         <Pressable
