@@ -1,7 +1,7 @@
 "use client";
 
-import { countByDay, currentStreak, minutesByDay, type DayCount } from "@todo/core";
-import { formatMinutes, useData, useTasks, useTimeEntries } from "@todo/data";
+import type { DayCount } from "@todo/core";
+import { formatMinutes, useStats } from "@todo/data";
 
 const DAYS = 14;
 const WEEK = 7;
@@ -39,19 +39,7 @@ function Chart({ title, days, format }: { title: string; days: readonly DayCount
 }
 
 export function StatsScreen() {
-  const { timeZone } = useData();
-  const tasks = useTasks().data ?? [];
-  const entries = useTimeEntries().data ?? [];
-  const now = new Date();
-
-  const completed = countByDay(
-    tasks.flatMap((task) => (task.completedAt ? [task.completedAt] : [])),
-    now,
-    timeZone,
-    DAYS,
-  );
-  const tracked = minutesByDay(entries, now, timeZone, DAYS);
-  const streak = currentStreak(completed);
+  const { completed, tracked, streak } = useStats(DAYS);
   const thisWeek = <T extends DayCount>(days: readonly T[]) => days.slice(-WEEK);
 
   return (

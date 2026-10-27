@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readActiveWorkspace, setActiveWorkspace, subscribeActiveWorkspace } from "./active-workspace";
+import { readActiveWorkspace, setActiveWorkspace, subscribeActiveWorkspace } from "./active-workspace.ts";
 
 function memoryStorage(): Storage {
   const data = new Map<string, string>();

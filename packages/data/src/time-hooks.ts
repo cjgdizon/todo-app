@@ -1,5 +1,6 @@
+import { countByDay, currentStreak, minutesByDay } from "@todo/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { queryKeys, useData } from "./hooks.ts";
+import { queryKeys, useData, useTasks } from "./hooks.ts";
 import type { TimeEntry } from "./models.ts";
 import { fetchTimeEntries, insertTimeEntry, updateTimeEntry } from "./queries.ts";
 
@@ -79,4 +80,19 @@ export function useStopTimer() {
     onError: (_error, _variables, context) => cache.rollback(context),
     onSettled: cache.settle,
   });
+}
+
+/** Tasks completed and minutes tracked on each of the last `days` days, and the current streak. */
+export function useStats(days: number) {
+  const { timeZone } = useData();
+  const tasks = useTasks().data ?? [];
+  const entries = useTimeEntries().data ?? [];
+  const now = new Date();
+  const completed = countByDay(
+    tasks.flatMap((task) => (task.completedAt ? [task.completedAt] : [])),
+    now,
+    timeZone,
+    days,
+  );
+  return { completed, tracked: minutesByDay(entries, now, timeZone, days), streak: currentStreak(completed) };
 }

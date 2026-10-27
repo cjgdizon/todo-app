@@ -7,6 +7,7 @@ import {
   deserializeCache,
   serializeCache,
   updateProfileTimeZone,
+  useActiveWorkspace,
   useBootstrap,
   type OfflineFetch,
   type TodoClient,
@@ -248,7 +249,7 @@ function SessionGate({ children, persist }: { children: ReactNode; persist: () =
 }
 
 function Workspace({ client, userId, children }: { client: TodoClient; userId: string; children: ReactNode }) {
-  const bootstrap = useBootstrap(client, userId);
+  const bootstrap = useBootstrap(client, userId, useActiveWorkspace(userId));
   const theme = useTheme();
   const deviceZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const profileZone = bootstrap.data?.profile.timeZone;

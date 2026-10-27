@@ -13,7 +13,7 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
         tabBarActiveTintColor: theme["accent-strong"],
         tabBarInactiveTintColor: theme["text-muted"],
-        // Labels only: the four destinations are few and the words are clearer than icons.
+        // Labels only: the five destinations are few and the words are clearer than icons.
         tabBarIcon: () => null,
         tabBarIconStyle: { display: "none" },
         tabBarLabelStyle: { fontSize: 14, fontWeight: "600" },
@@ -23,6 +23,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="today" options={{ title: "Today" }} />
       <Tabs.Screen name="upcoming" options={{ title: "Upcoming" }} />
       <Tabs.Screen name="projects" options={{ title: "Projects" }} />
+      <Tabs.Screen name="more" options={{ title: "More" }} />
     </Tabs>
   );
 }
