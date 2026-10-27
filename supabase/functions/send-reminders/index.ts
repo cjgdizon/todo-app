@@ -4,6 +4,7 @@
 // never sent twice), pushes it to Expo, and forgets the devices Expo says no longer exist.
 // Nothing sensitive is logged: counts and error kinds only, never tokens or task titles.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sameSecret } from "../_shared/secret.ts";
 import {
   buildReminderMessages,
   chunk,
@@ -31,20 +32,6 @@ interface ClaimedRow {
 
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
-
-/** Compares two secrets without stopping at the first difference. */
-async function sameSecret(given: string, expected: string): Promise<boolean> {
-  const encoder = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest("SHA-256", encoder.encode(given)),
-    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
-  ]);
-  const left = new Uint8Array(a);
-  const right = new Uint8Array(b);
-  let difference = 0;
-  for (let i = 0; i < left.length; i++) difference |= (left[i] ?? 0) ^ (right[i] ?? 0);
-  return difference === 0;
-}
 
 const toDueReminder = (row: ClaimedRow): DueReminder => ({
   reminderId: row.reminder_id,

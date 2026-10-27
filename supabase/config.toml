@@ -388,6 +388,10 @@ deno_version = 2
 [functions.send-reminders]
 verify_jwt = false
 
+# Same for the calendar sync: called every minute by the database, checks GCAL_CRON_SECRET.
+[functions.gcal-sync]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
