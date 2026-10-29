@@ -133,11 +133,16 @@ export function createOfflineFetch(options: OfflineFetchOptions): OfflineFetch {
    * Best effort: asks the server whether the rows an edit targets changed since it was made, by
    * anyone (another member, or this user's other device). Every edit is asked about before the
    * first one is sent, so this device's own replays never count as "meanwhile".
+   * An answer that cannot be read counts as "no change". But if the server cannot be reached for
+   * the question (just after reconnecting the network is often not usable yet), the edit stays
+   * unchecked and false is returned, so the replay waits and the question is asked again, rather
+   * than the warning being lost for good.
    * shortcut: compares the device clock with the server's `updated_at`, so a badly wrong clock gives a wrong answer; upgrade to a base version per edit if that matters.
    */
-  async function checkConflicts(token: string): Promise<void> {
+  async function checkConflicts(token: string): Promise<boolean> {
     let found = 0;
     let table = "";
+    let reachable = true;
     for (const entry of stored.entries) {
       if (entry.checked) continue;
       entry.checked = true;
@@ -150,19 +155,28 @@ export function createOfflineFetch(options: OfflineFetchOptions): OfflineFetch {
       check.searchParams.set("updated_at", `gt.${new Date(entry.at).toISOString()}`);
       const headers = new Headers(entry.headers);
       headers.set("authorization", `Bearer ${token}`);
+      let response: Response;
       try {
-        const response = await real(check.toString(), { method: "GET", headers });
-        const rows: unknown = response.ok ? await response.json() : [];
-        if (Array.isArray(rows) && rows.length > 0) {
-          found += rows.length;
-          table = target.pathname.split("/").pop() ?? "";
-        }
+        response = await real(check.toString(), { method: "GET", headers });
       } catch {
-        // The edit itself is sent next and handles an unreachable server.
+        entry.checked = false;
+        reachable = false;
+        break;
+      }
+      if (RETRY_LATER(response.status)) {
+        entry.checked = false;
+        reachable = false;
+        break;
+      }
+      const rows: unknown = response.ok ? await response.json().catch(() => []) : [];
+      if (Array.isArray(rows) && rows.length > 0) {
+        found += rows.length;
+        table = target.pathname.split("/").pop() ?? "";
       }
     }
     commit();
     if (found > 0) onConflict?.({ table, count: found });
+    return reachable;
   }
 
   async function replay(): Promise<void> {
@@ -170,7 +184,7 @@ export function createOfflineFetch(options: OfflineFetchOptions): OfflineFetch {
       const entry = stored.entries[0]!;
       const token = await getAccessToken();
       if (!token) return;
-      if (onConflict && stored.entries.some((e) => !e.checked)) await checkConflicts(token);
+      if (onConflict && stored.entries.some((e) => !e.checked) && !(await checkConflicts(token))) return;
       const headers = new Headers(entry.headers);
       headers.set("authorization", `Bearer ${token}`);
 

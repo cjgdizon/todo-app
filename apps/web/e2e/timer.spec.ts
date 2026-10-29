@@ -45,4 +45,10 @@ test("a focus session counts down and starting another task moves the timer", as
   await expect(timerBar(page)).toContainText("Timing");
   await expect(timerBar(page)).toContainText("Second task");
   await expect(timerBar(page)).not.toContainText("left");
+
+  // What the screen shows first is only the optimistic update: after a reload, the server has to agree
+  // (the first timer stopped, the second one running).
+  await reloadWhenSaved(page);
+  await expect(timerBar(page)).toContainText("Second task");
+  await expect(timerBar(page)).not.toContainText("First task");
 });

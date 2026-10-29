@@ -6,6 +6,7 @@ import {
   useInvites,
   useMembers,
   useMemberships,
+  queryKeys,
   useRemoveMember,
   useRevokeInvite,
   useSetMemberRole,
@@ -15,6 +16,7 @@ import {
 } from "@todo/data";
 import { useId, useState } from "react";
 import { setActiveWorkspace } from "@/lib/active-workspace";
+import { useRefreshOnOpen } from "@/lib/use-refresh-on-open";
 import { inviteLink } from "@/lib/safe-next";
 import { useToast } from "./toast";
 
@@ -25,6 +27,7 @@ const ROLE_LABEL: Record<WorkspaceRole, string> = { owner: "Owner", admin: "Admi
 
 export function MembersScreen() {
   const { userId, workspaceId } = useData();
+  useRefreshOnOpen("/members", [queryKeys.members(workspaceId), queryKeys.invites(workspaceId)]);
   const members = useMembers();
   const workspaceName = useMemberships().data?.find((m) => m.id === workspaceId)?.name;
   const me = members.data?.find((member) => member.userId === userId);

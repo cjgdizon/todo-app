@@ -20,7 +20,8 @@ create table public.calendar_integrations (
   foreign key (workspace_id, user_id)
     references public.workspace_members (workspace_id, user_id) on delete cascade
 );
-create index calendar_integrations_workspace_idx on public.calendar_integrations (workspace_id) where enabled;
+-- Covers the foreign key to workspace_members and the trigger's lookup of who has sync on in a workspace.
+create index calendar_integrations_workspace_idx on public.calendar_integrations (workspace_id, user_id);
 
 alter table public.calendar_integrations enable row level security;
 create policy calendar_integrations_select_own on public.calendar_integrations
@@ -62,6 +63,7 @@ create table public.task_calendar_links (
   foreign key (task_id, workspace_id) references public.tasks (id, workspace_id) on delete cascade
 );
 create index task_calendar_links_workspace_idx on public.task_calendar_links (workspace_id);
+create index task_calendar_links_task_idx on public.task_calendar_links (task_id, workspace_id);
 
 alter table public.task_calendar_links enable row level security;
 create policy task_calendar_links_select_own on public.task_calendar_links
@@ -81,6 +83,7 @@ create table public.calendar_sync_queue (
   queued_at timestamptz not null default now(),
   unique (user_id, task_id)
 );
+create index calendar_sync_queue_workspace_idx on public.calendar_sync_queue (workspace_id);
 alter table public.calendar_sync_queue enable row level security;
 revoke all on public.calendar_sync_queue from anon, authenticated;
 grant select, insert, update, delete on public.calendar_sync_queue to service_role;

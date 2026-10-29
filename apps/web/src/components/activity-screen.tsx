@@ -1,10 +1,12 @@
 "use client";
 
-import { describeActivity, useActivity, useData, useMembers, useTasks } from "@todo/data";
+import { describeActivity, queryKeys, useActivity, useData, useMembers, useTasks } from "@todo/data";
+import { useRefreshOnOpen } from "@/lib/use-refresh-on-open";
 import { useTaskSelection } from "@/lib/use-task-selection";
 
 export function ActivityScreen() {
-  const { userId } = useData();
+  const { userId, workspaceId } = useData();
+  useRefreshOnOpen("/activity", [queryKeys.activity(workspaceId), queryKeys.members(workspaceId)]);
   const activity = useActivity();
   const members = useMembers().data ?? [];
   const taskIds = new Set((useTasks().data ?? []).map((task) => task.id));

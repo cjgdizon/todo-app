@@ -1,5 +1,6 @@
 import { countByDay, currentStreak, minutesByDay } from "@todo/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { queryKeys, useData, useTasks } from "./hooks.ts";
 import type { TimeEntry } from "./models.ts";
 import { fetchTimeEntries, insertTimeEntry, updateTimeEntry } from "./queries.ts";
@@ -53,19 +54,27 @@ export function useStartTimer() {
   const { client, workspaceId, userId } = useData();
   const cache = useTimeEntriesCache();
   const queryClient = useQueryClient();
+  // The optimistic update below stops the running timer in the cache before the request is made, so
+  // which timer to stop in the database has to be noted first, per new timer.
+  const toStop = useRef(new Map<string, string>());
 
   return useMutation({
     mutationFn: async ({ id, taskId, at }: { id: string; taskId: string; at: Date }) => {
-      const running = queryClient
-        .getQueryData<TimeEntry[]>(queryKeys.timeEntries(workspaceId))
-        ?.find((entry) => entry.endedAt === null && entry.id !== id);
+      const running = toStop.current.get(id);
+      toStop.current.delete(id);
       // Stop first: the database allows one running timer per person.
-      if (running) await updateTimeEntry(client, running.id, { endedAt: at });
+      if (running) await updateTimeEntry(client, running, { endedAt: at });
       await insertTimeEntry(client, { id, workspaceId, taskId, userId, startedAt: at });
     },
-    onMutate: ({ id, taskId, at }) =>
-      cache.apply((entries) => [{ id, taskId, startedAt: at, endedAt: null }, ...stopped(entries, at)]),
-    onError: (_error, _variables, context) => cache.rollback(context),
+    onMutate: ({ id, taskId, at }) => {
+      const running = queryClient.getQueryData<TimeEntry[]>(queryKeys.timeEntries(workspaceId))?.find((entry) => entry.endedAt === null);
+      if (running) toStop.current.set(id, running.id);
+      return cache.apply((entries) => [{ id, taskId, startedAt: at, endedAt: null }, ...stopped(entries, at)]);
+    },
+    onError: (_error, { id }, context) => {
+      toStop.current.delete(id);
+      cache.rollback(context);
+    },
     onSettled: cache.settle,
   });
 }

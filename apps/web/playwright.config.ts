@@ -54,6 +54,9 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
+    // A click or fill that cannot find its target should fail in seconds with a clear message, not
+    // wait out the whole test timeout.
+    actionTimeout: 15_000,
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

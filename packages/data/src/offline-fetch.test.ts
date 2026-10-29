@@ -273,6 +273,42 @@ describe("offline fetch", () => {
       expect(conflicts).not.toHaveBeenCalled();
     });
 
+    it("asks again later when the server could not be reached for the check, so the warning is not lost", async () => {
+      online = false;
+      const offline = makeBound();
+      offline.bindUser("me");
+      await write(offline, "tasks?id=eq.1", { priority: 1 });
+      online = true;
+      // Right after reconnecting the network may not be usable yet: the check fails, nothing is sent.
+      real.mockRejectedValueOnce(networkError());
+      await offline.flush();
+      expect(conflicts).not.toHaveBeenCalled();
+      expect(real).toHaveBeenCalledTimes(1);
+      expect(offline.pending()).toBe(1);
+
+      // Next time the check works and finds the change made elsewhere; the edit is then saved.
+      real.mockResolvedValueOnce(new Response('[{"id":"1"}]', { status: 200 })).mockResolvedValueOnce(new Response(null, { status: 204 }));
+      await offline.flush();
+      expect(conflicts).toHaveBeenCalledWith({ table: "tasks", count: 1 });
+      expect(offline.pending()).toBe(0);
+    });
+
+    it("does the same when the server answers the check with an error to try again later", async () => {
+      online = false;
+      const offline = makeBound();
+      offline.bindUser("me");
+      await write(offline, "tasks?id=eq.1", { priority: 1 });
+      online = true;
+      real.mockResolvedValueOnce(new Response(null, { status: 503 }));
+      await offline.flush();
+      expect(real).toHaveBeenCalledTimes(1);
+      expect(offline.pending()).toBe(1);
+
+      real.mockResolvedValueOnce(new Response('[{"id":"1"}]', { status: 200 })).mockResolvedValueOnce(new Response(null, { status: 204 }));
+      await offline.flush();
+      expect(conflicts).toHaveBeenCalledWith({ table: "tasks", count: 1 });
+    });
+
     it("asks about every stored edit before sending the first, so its own replays never count", async () => {
       online = false;
       const offline = makeBound();
@@ -295,9 +331,11 @@ describe("offline fetch", () => {
       await write(offline, "tasks?id=eq.2", { priority: 2 }); // made online behind the first: not checked
       await offline.flush();
       await offline.flush();
+      // The offline edit is asked about (again on each try while the server is unreachable); the one
+      // made online behind it never is.
       const gets = real.mock.calls.filter(([, init]) => init?.method === "GET");
-      expect(gets).toHaveLength(1);
-      expect(String(gets[0]![0])).toContain("id=eq.1");
+      expect(gets.length).toBeGreaterThanOrEqual(1);
+      expect(gets.every(([url]) => String(url).includes("id=eq.1"))).toBe(true);
     });
 
     it("does not look for conflicts on inserts", async () => {
