@@ -19,21 +19,13 @@ jobs:
   dump:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Dump schema and data
-        run: |
-          mkdir backup
-          npx --yes supabase@2.121.0 db dump --db-url "$BACKUP_DB_URL" --schema public -f backup/schema.sql
-          # From auth only users and identities are kept: sessions, refresh tokens and one-time tokens
-          # would be live logins in a file, and nothing needs them after a restore (people sign in again).
-          EXCLUDE="auth.audit_log_entries,auth.custom_oauth_providers,auth.flow_state,auth.instances,auth.oauth_client_states,auth.oauth_authorizations,auth.oauth_clients,auth.oauth_consents,auth.sessions,auth.refresh_tokens,auth.mfa_amr_claims,auth.mfa_factors,auth.mfa_challenges,auth.mfa_recovery_code_sets,auth.mfa_recovery_codes,auth.one_time_tokens,auth.sso_providers,auth.sso_domains,auth.saml_providers,auth.saml_relay_states,auth.scim_tokens,auth.scim_users,auth.webauthn_challenges,auth.webauthn_credentials"
-          npx --yes supabase@2.121.0 db dump --db-url "$BACKUP_DB_URL" --schema public,auth --data-only --use-copy -x "$EXCLUDE" -f backup/data.sql
-          # A dump that is empty or missing the tables would pass silently; stop the job instead.
-          grep -q "CREATE TABLE" backup/schema.sql
-          grep -q "COPY \"public\".\"tasks\"" backup/data.sql
-          if grep -q "COPY \"auth\".\"sessions\"" backup/data.sql; then echo "sessions leaked into the dump"; exit 1; fi
+        run: bash scripts/backup-dump.sh "$BACKUP_DB_URL" backup
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
 
       - uses: actions/upload-artifact@v4
         with:
