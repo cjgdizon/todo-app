@@ -1,9 +1,15 @@
-import { Tabs } from "expo-router";
+import { DarkTheme, DefaultTheme, Tabs, ThemeProvider } from "expo-router";
+import { useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts, useTheme } from "@/lib/theme";
 
 export default function TabsLayout() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  // The gaps around the floating dock show the navigator background, so it must match the app theme.
+  const base = useColorScheme() === "dark" ? DarkTheme : DefaultTheme;
   return (
+    <ThemeProvider value={{ ...base, colors: { ...base.colors, background: theme.bg } }}>
     <Tabs
       screenOptions={{
         headerShadowVisible: false,
@@ -19,7 +25,8 @@ export default function TabsLayout() {
           borderRadius: 24,
           height: 68,
           marginHorizontal: 14,
-          marginBottom: 14,
+          // Stay clear of the home indicator / system gesture area.
+          marginBottom: insets.bottom + 8,
           paddingBottom: 0,
         },
         tabBarActiveTintColor: theme["accent-strong"],
@@ -36,5 +43,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="projects" options={{ title: "Projects" }} />
       <Tabs.Screen name="more" options={{ title: "More" }} />
     </Tabs>
+    </ThemeProvider>
   );
 }
