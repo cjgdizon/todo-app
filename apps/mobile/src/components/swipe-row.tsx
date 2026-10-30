@@ -1,9 +1,13 @@
 import { useMemo, useRef, type ReactNode } from "react";
-import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, PanResponder, StyleSheet, Text, View } from "react-native";
+import { thresholdTick } from "@/lib/haptics";
 import { space, useTheme } from "@/lib/theme";
 
-const TRIGGER = 80;
-const MAX = 120;
+/** The row follows the finger one to one up to this distance; releasing past it commits the action. */
+const TRIGGER = 96;
+/** Past the trigger the row resists: it moves this fraction of the extra distance. */
+const RESISTANCE = 0.35;
+const MAX = 140;
 
 interface SwipeRowProps {
   children: ReactNode;
@@ -22,6 +26,7 @@ interface SwipeRowProps {
 export function SwipeRow({ children, rightLabel, onSwipeRight, leftLabel, onSwipeLeft }: SwipeRowProps) {
   const theme = useTheme();
   const x = useRef(new Animated.Value(0)).current;
+  const passed = useRef(false);
   // The responder is created once, so it reads the latest handlers through a ref.
   const handlers = useRef({ onSwipeRight, onSwipeLeft });
   handlers.current = { onSwipeRight, onSwipeLeft };
@@ -30,13 +35,24 @@ export function SwipeRow({ children, rightLabel, onSwipeRight, leftLabel, onSwip
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_event, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-        onPanResponderMove: (_event, g) => x.setValue(Math.max(-MAX, Math.min(MAX, g.dx))),
+        onPanResponderMove: (_event, g) => {
+          const far = Math.abs(g.dx);
+          const eased = far <= TRIGGER ? far : TRIGGER + (far - TRIGGER) * RESISTANCE;
+          x.setValue(Math.sign(g.dx) * Math.min(MAX, eased));
+          // One tick each time the swipe crosses the commit line.
+          if (far >= TRIGGER && !passed.current) thresholdTick();
+          passed.current = far >= TRIGGER;
+        },
         onPanResponderRelease: (_event, g) => {
           if (g.dx > TRIGGER) handlers.current.onSwipeRight();
           else if (g.dx < -TRIGGER) handlers.current.onSwipeLeft();
-          Animated.timing(x, { toValue: 0, duration: 120, useNativeDriver: true }).start();
+          passed.current = false;
+          Animated.timing(x, { toValue: 0, duration: 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
         },
-        onPanResponderTerminate: () => x.setValue(0),
+        onPanResponderTerminate: () => {
+          passed.current = false;
+          x.setValue(0);
+        },
       }),
     [x],
   );

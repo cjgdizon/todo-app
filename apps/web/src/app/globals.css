@@ -21,7 +21,8 @@
   --color-priority-2: var(--priority-2);
   --color-priority-3: var(--priority-3);
   --shadow-pop: var(--shadow-popover);
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), Georgia, serif;
 }
 
 html {
@@ -46,6 +47,31 @@ body {
   line-height: 24px;
 }
 
+/*
+ * Serif for screen titles; sans does the work. Only h1: this rule is unlayered, so it beats
+ * Tailwind utilities, and small headings elsewhere (sidebar groups, settings) keep their own styles.
+ */
+h1 {
+  font-family: var(--font-serif);
+  font-weight: 300;
+  letter-spacing: -0.01em;
+}
+
+/* Frosted glass: only for layers that float above content (Next up card, dock, sheets). */
+.glass {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  box-shadow: var(--shadow-popover);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .glass {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+  }
+}
+
 /* Visible keyboard focus on every interactive element (DESIGN.md: 2px, 2px offset). */
 :focus-visible {
   outline: 2px solid var(--focus-ring);
@@ -59,6 +85,33 @@ body {
   }
 }
 
+/* Completion, in order: ring fills (120ms), check draws (160ms after 40ms), title is struck left to right (220ms after 80ms). */
+.row-ring {
+  transition:
+    background-color 120ms var(--ease-enter),
+    border-color 120ms var(--ease-enter);
+}
+
+.row-check path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  transition: stroke-dashoffset 160ms var(--ease-enter) 40ms;
+}
+
+.row-ring[aria-checked="true"] .row-check path,
+.row-ring:hover .row-check path {
+  stroke-dashoffset: 0;
+}
+
+.row-title {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px;
+  transition: background-size 220ms var(--ease-enter) 80ms;
+}
+
+.row-title[data-done="true"] {
+  background-size: 100% 1.5px;
+}
+
 .row-leaving {
   animation: row-leave var(--duration-base) var(--ease-leave) 600ms forwards;
 }
@@ -70,5 +123,6 @@ body {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }

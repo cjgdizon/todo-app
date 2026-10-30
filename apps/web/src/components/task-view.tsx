@@ -33,6 +33,7 @@ import { selectView, type View } from "@todo/data";
 import { BulkBar } from "./bulk-bar";
 import { QuickAdd, type QuickAddDefaults } from "./quick-add";
 import { TaskRow } from "./task-row";
+import { TodaySummary } from "./today-summary";
 import { useToast } from "./toast";
 
 /** Re-renders every minute so "overdue" flips without a reload. */
@@ -275,7 +276,7 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
   return (
     <main className={`mx-auto w-full max-w-[720px] px-4 py-8 ${selecting ? "pb-28" : ""}`}>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <h1 className="text-[20px] leading-7 font-semibold">{title}</h1>
+        <h1 className="text-[28px] leading-[34px]">{title}</h1>
         <div className="flex items-center gap-1">
           {!empty && (
             <button
@@ -290,6 +291,10 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
           {actions}
         </div>
       </div>
+
+      {view.kind === "today" && !loading && (
+        <TodaySummary tasks={tasks} ctx={ctx} projectName={projectName} onComplete={(t) => void onToggle(t)} />
+      )}
 
       {view.kind === "search" ? <SearchBox query={view.query} /> : <QuickAdd defaults={defaults} />}
 
@@ -320,7 +325,7 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
         result.sections.map((section) => (
           <section key={section.key} aria-label={section.title ?? title} className="mb-6">
             {section.title && (
-              <h2 className="mb-1 text-sm font-medium text-text-muted">{section.title}</h2>
+              <h2 className="mb-1 font-serif text-[18px] leading-6 text-text-muted">{section.title}</h2>
             )}
             {canReorder ? (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>

@@ -1,6 +1,6 @@
 import type { Label, Project, Task } from "./models.ts";
 import { describe, expect, it } from "vitest";
-import { selectView } from "./views.ts";
+import { nextUpTask, selectView, todayProgress } from "./views.ts";
 
 // Tuesday 2026-10-20 18:00 in Manila (UTC+8).
 const ctx = { now: new Date("2026-10-20T10:00:00Z"), timeZone: "Asia/Manila" };
@@ -149,5 +149,82 @@ describe("selectView: label and search", () => {
   it("shows nothing for an empty search", () => {
     const result = run(tasks, { kind: "search", query: "   " });
     expect(result).toEqual({ sections: [], error: null });
+  });
+});
+
+describe("nextUpTask", () => {
+  const ahead = { dueAt: new Date("2026-10-20T11:00:00Z") }; // 19:00 Manila
+  const later = { dueAt: new Date("2026-10-20T14:00:00Z") }; // 22:00 Manila
+  const past = { dueAt: new Date("2026-10-20T06:00:00Z") }; // 14:00 Manila
+  const allDay = { dueAt: new Date("2026-10-19T16:00:00Z"), dueAllDay: true };
+
+  it("picks the earliest timed task still ahead today", () => {
+    const next = nextUpTask(
+      [task({ title: "later", ...later }), task({ title: "soon", ...ahead }), task({ title: "past", ...past })],
+      ctx,
+    );
+    expect(next?.title).toBe("soon");
+  });
+
+  it("ignores all-day tasks", () => {
+    expect(nextUpTask([task({ title: "all day", ...allDay })], ctx)).toBeNull();
+  });
+
+  it("falls back to the earliest timed task already past today", () => {
+    const next = nextUpTask([task({ title: "past", ...past })], ctx);
+    expect(next?.title).toBe("past");
+  });
+
+  it("ignores completed tasks and tasks due on other days", () => {
+    const next = nextUpTask(
+      [
+        task({ title: "done", ...ahead, completedAt: new Date("2026-10-20T09:00:00Z") }),
+        task({ title: "tomorrow", dueAt: new Date("2026-10-21T02:00:00Z") }),
+        task({ title: "no date" }),
+      ],
+      ctx,
+    );
+    expect(next).toBeNull();
+  });
+});
+
+describe("todayProgress", () => {
+  it("counts tasks done today against open tasks due today or overdue", () => {
+    const progress = todayProgress(
+      [
+        task({ title: "done today", dueAt: new Date("2026-10-20T06:00:00Z"), completedAt: new Date("2026-10-20T08:00:00Z") }),
+        task({ title: "open today", dueAt: new Date("2026-10-20T11:00:00Z") }),
+        task({ title: "overdue", dueAt: new Date("2026-10-18T06:00:00Z") }),
+        task({ title: "done yesterday", completedAt: new Date("2026-10-19T08:00:00Z") }),
+        task({ title: "tomorrow", dueAt: new Date("2026-10-21T02:00:00Z") }),
+      ],
+      ctx,
+    );
+    expect(progress).toEqual({ done: 1, total: 3 });
+  });
+
+  it("is 0 of 0 with nothing due", () => {
+    expect(todayProgress([task({ title: "no date" })], ctx)).toEqual({ done: 0, total: 0 });
+  });
+});
+
+describe("todayProgress ignores finished tasks that were never due today", () => {
+  it("does not count an undated task or one due next week, even if finished today", () => {
+    const progress = todayProgress(
+      [
+        task({ title: "inbox", completedAt: new Date("2026-10-20T08:00:00Z") }),
+        task({ title: "next week", dueAt: new Date("2026-10-27T02:00:00Z"), completedAt: new Date("2026-10-20T08:00:00Z") }),
+      ],
+      ctx,
+    );
+    expect(progress).toEqual({ done: 0, total: 0 });
+  });
+
+  it("counts a task due earlier that was finished today", () => {
+    const progress = todayProgress(
+      [task({ title: "late", dueAt: new Date("2026-10-18T06:00:00Z"), completedAt: new Date("2026-10-20T08:00:00Z") })],
+      ctx,
+    );
+    expect(progress).toEqual({ done: 1, total: 1 });
   });
 });

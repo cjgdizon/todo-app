@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Fraunces, Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  weight: ["300", "400"],
+});
+
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
   weight: ["400", "500", "600"],
 });
@@ -18,7 +24,7 @@ const themeScript = `try{var t=localStorage.getItem("theme");if(t==="light"||t==
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${fraunces.variable} ${hanken.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
