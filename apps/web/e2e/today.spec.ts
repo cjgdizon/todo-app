@@ -1,13 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { addTask, signUp } from "./helpers";
+import { addTask, reloadWhenSaved, signUp, taskRow } from "./helpers";
 
 test("Today shows next up, progress and the finished state", async ({ page }) => {
   await signUp(page);
   // Late-evening times keep both tasks ahead of "now" for any normal test run.
   await addTask(page, "Earlier one today at 11:58pm");
   await addTask(page, "Later one today at 11:59pm");
+  await reloadWhenSaved(page);
 
   await page.getByRole("link", { name: "Today" }).click();
+  await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
   const nextUp = page.getByRole("region", { name: "Next up" });
   await expect(nextUp).toContainText("Earlier one");
   await expect(page.getByText("0 of 2 done")).toBeVisible();
@@ -32,7 +34,22 @@ test("Today shows next up, progress and the finished state", async ({ page }) =>
 test("Today shows neither card nor progress when nothing is due", async ({ page }) => {
   await signUp(page);
   await page.getByRole("link", { name: "Today" }).click();
+  await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
   await expect(page.getByText("Nothing is due today.")).toBeVisible();
   await expect(page.getByRole("region", { name: "Next up" })).toHaveCount(0);
   await expect(page.getByRole("progressbar", { name: "Tasks done today" })).toHaveCount(0);
+});
+
+test("completing a task marks the row and its title for the fill and strike", async ({ page }) => {
+  await signUp(page);
+  await addTask(page, "Stretch today");
+  await reloadWhenSaved(page);
+  await page.getByRole("link", { name: "Today" }).click();
+  await expect(page.getByRole("heading", { name: "Today", level: 1 })).toBeVisible();
+
+  const row = taskRow(page, "Stretch");
+  await page.getByRole("checkbox", { name: "Complete: Stretch" }).click();
+  // CSS draws the ring, check and strike from these attributes.
+  await expect(row).toHaveAttribute("data-completing", "true");
+  await expect(row.getByRole("button", { name: "Stretch", exact: true })).toHaveAttribute("data-done", "true");
 });

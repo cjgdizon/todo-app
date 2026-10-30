@@ -88,6 +88,33 @@ h3 {
   }
 }
 
+/* Completion, in order: ring fills (120ms), check draws (160ms after 40ms), title is struck left to right (220ms after 80ms). */
+.row-ring {
+  transition:
+    background-color 120ms var(--ease-enter),
+    border-color 120ms var(--ease-enter);
+}
+
+.row-check path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  transition: stroke-dashoffset 160ms var(--ease-enter) 40ms;
+}
+
+.row-ring[aria-checked="true"] .row-check path,
+.row-ring:hover .row-check path {
+  stroke-dashoffset: 0;
+}
+
+.row-title {
+  background: linear-gradient(currentColor, currentColor) no-repeat 0 58% / 0 1.5px;
+  transition: background-size 220ms var(--ease-enter) 80ms;
+}
+
+.row-title[data-done="true"] {
+  background-size: 100% 1.5px;
+}
+
 .row-leaving {
   animation: row-leave var(--duration-base) var(--ease-leave) 600ms forwards;
 }
@@ -99,5 +126,6 @@ h3 {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }

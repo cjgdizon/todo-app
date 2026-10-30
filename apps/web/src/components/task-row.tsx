@@ -69,6 +69,7 @@ export function TaskRow({
       ref={drag?.setNodeRef}
       style={drag?.style}
       data-task-id={task.id}
+      data-completing={done}
       className={`group list-none ${done ? "row-leaving" : ""} ${drag?.isDragging ? "opacity-60" : ""}`}
     >
       <div
@@ -105,13 +106,13 @@ export function TaskRow({
           aria-checked={done}
           aria-label={`Complete: ${task.title}`}
           onClick={() => onToggle(task)}
-          className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 ${
+          className={`row-ring mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 ${
             done
               ? "border-accent bg-accent text-on-accent"
               : "border-text-muted text-transparent hover:text-text-muted"
           }`}
         >
-          <CheckIcon width={14} height={14} />
+          <CheckIcon width={14} height={14} className="row-check" />
         </button>
 
         <div className="min-w-0 flex-1">
@@ -119,7 +120,8 @@ export function TaskRow({
             type="button"
             onClick={() => onOpen(task)}
             onKeyDown={onTitleKeyDown}
-            className={`block w-full text-left font-medium ${done ? "text-text-muted line-through opacity-60" : ""}`}
+            data-done={done}
+            className={`row-title block w-full text-left font-medium ${done ? "text-text-muted opacity-60" : ""}`}
           >
             {task.title}
           </button>
