@@ -52,7 +52,9 @@ async function syncPerson(db: Db, person: Integration): Promise<{ sent: number; 
   // Take the waiting tasks off the queue first (in one statement, so an overlapping run cannot
   // take the same ones); any that fail go back, so none is lost and a change made meanwhile is
   // queued again by the database.
-  const { data: waiting } = await db.rpc("claim_calendar_sync_queue", { p_user: person.user_id, batch: TASKS_PER_PERSON });
+  const { data: waiting, error: claimError } = await db.rpc("claim_calendar_sync_queue", { p_user: person.user_id, batch: TASKS_PER_PERSON });
+  // Fail loudly (the person's status shows it) rather than silently syncing nothing, e.g. when the migration is not applied yet.
+  if (claimError) throw new Error(`claim failed ${claimError.code ?? ""}`.trim());
   const rows = (waiting ?? []) as { task_id: string }[];
   let sent = 0;
   for (const row of rows) {
