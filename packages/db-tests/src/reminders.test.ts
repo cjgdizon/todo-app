@@ -206,6 +206,36 @@ describe("claiming due reminders", () => {
     expect(row?.sent_at).not.toBeNull();
   });
 
+  const reminderId = async (task: string) =>
+    (await db.query<{ id: string }>("select id from public.reminders where task_id = $1", [task])).rows[0]!.id;
+  const unclaim = (ids: string[]) =>
+    asService(db, () => db.query<{ n: number }>("select public.unclaim_reminders($1::uuid[]) as n", [ids]));
+
+  it("hands a reminder out again after it was put back because the push could not be sent", async () => {
+    const { task } = await dueReminder();
+    expect((await claim()).rows.filter((r) => r.task_id === task)).toHaveLength(1);
+
+    expect((await unclaim([await reminderId(task)])).rows[0]?.n).toBe(1);
+
+    expect((await claim()).rows.filter((r) => r.task_id === task)).toHaveLength(1);
+  });
+
+  it("does not put back a reminder that is already more than a day late", async () => {
+    const { task } = await dueReminder();
+    await claim();
+    await db.query("update public.reminders set remind_at = now() - interval '2 days' where task_id = $1", [task]);
+
+    expect((await unclaim([await reminderId(task)])).rows[0]?.n).toBe(0);
+    expect((await claim()).rows.filter((r) => r.task_id === task)).toHaveLength(0);
+  });
+
+  it("cannot be used to put reminders back by a signed-in person", async () => {
+    const { owner, task } = await dueReminder();
+    await expect(
+      as(owner, `select public.unclaim_reminders(array['${await reminderId(task)}']::uuid[])`),
+    ).rejects.toThrow(/permission denied/);
+  });
+
   it("is for the server only", async () => {
     const { owner } = await dueReminder();
     await expect(as(owner, "select * from public.claim_due_reminders()")).rejects.toThrow(/permission denied/);
