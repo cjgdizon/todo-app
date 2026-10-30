@@ -27,6 +27,7 @@ describe("colour tokens meet WCAG 2.2 AA", () => {
     ["accent-strong", "surface", 4.5],
     ["accent-strong", "accent-subtle", 4.5],
     ["text", "accent-subtle", 4.5],
+    ["text-muted", "accent-subtle", 4.5],
     ["on-accent", "accent", 4.5],
     ["danger", "bg", 4.5],
     ["danger", "surface", 4.5],
@@ -52,6 +53,13 @@ describe("colour tokens meet WCAG 2.2 AA", () => {
       });
     }
   }
+});
+
+describe("obsidian today palette", () => {
+  it("uses pure white for light mode and platinum for the dark accent", () => {
+    expect(colors.light.bg).toBe("#ffffff");
+    expect(colors.dark.accent).toBe("#b9c0cc");
+  });
 });
 
 describe("tokens.css", () => {

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsidian Today, light and dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --serif: "Fraunces", Georgia, serif; --sans: "Hanken Grotesk", system-ui, sans-serif; }
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; padding: 20px 16px; background: #1c1e1d; color: #cfd3cc; font-family: var(--sans); font-variant-numeric: tabular-nums; }
+  .pair { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
+  figure { display: grid; gap: 10px; justify-items: center; zoom: 0.8; }
+  figcaption { font-size: 15px; color: #cfd3cc; }
+
+  .phone.d { --bg:#0C0D0F; --surface:#17191C; --glass:rgba(255,255,255,.06); --edge:rgba(255,255,255,.1); --text:#ECEDEF; --muted:#A6ABB2; --accent:#B9C0CC; --accent-text:#DDE2EA; --on:#0E1116; --hair:rgba(255,255,255,.07); --danger:#E5877D; --glow:.30; --sheen:4%; --shade:rgba(0,0,0,.4); }
+  .phone.l { --bg:#FFFFFF; --surface:#FAFBFC; --glass:rgba(255,255,255,.72); --edge:rgba(21,26,32,.12); --text:#151A20; --muted:#566069; --accent:#4A5565; --accent-text:#3B4553; --on:#F5F7FA; --hair:rgba(21,26,32,.09); --danger:#A83A2E; --glow:.05; --sheen:1%; --shade:rgba(21,26,32,.12); }
+
+  .phone { position: relative; width: 390px; height: 693px; overflow: hidden; border-radius: 36px; background: var(--bg); color: var(--text); box-shadow: 0 0 0 1px var(--edge), 0 30px 80px rgba(0,0,0,.5); }
+  .phone::before { content: ""; position: absolute; inset: 0; pointer-events: none; background:
+    radial-gradient(260px 220px at 92% 6%, color-mix(in srgb, var(--accent) calc(var(--glow) * 100%), transparent), transparent 70%),
+    radial-gradient(300px 260px at -8% 78%, color-mix(in srgb, var(--accent) calc(var(--glow) * 33%), transparent), transparent 70%),
+    linear-gradient(115deg, transparent 38%, color-mix(in srgb, var(--text) var(--sheen), transparent) 38.2%, transparent 52%); }
+  .screen { position: relative; height: 100%; display: flex; flex-direction: column; }
+  .status { flex: none; height: 44px; padding: 14px 28px 0; display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; }
+  header { flex: none; padding: 6px 24px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+  h1 { font-family: var(--serif); font-weight: 300; font-size: 44px; line-height: 1.05; letter-spacing: -0.01em; }
+  .date { margin-top: 4px; font-size: 14px; color: var(--muted); }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: var(--accent-text); background: var(--glass); border: 1px solid var(--edge); }
+  .progress { flex: none; padding: 18px 24px 0; }
+  .progress p { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .track { height: 2px; background: var(--edge); border-radius: 2px; }
+  .fill { height: 100%; width: 0; background: var(--accent); border-radius: 2px; transition: width 180ms cubic-bezier(.2,0,0,1); }
+  .glass { background: linear-gradient(145deg, color-mix(in srgb, var(--glass) 100%, transparent), color-mix(in srgb, var(--glass) 55%, transparent)); -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%); border: 1px solid var(--edge); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text) 12%, transparent), 0 18px 36px var(--shade); }
+  .next { flex: none; margin: 18px 20px 0; padding: 18px 20px; border-radius: 20px; border-color: color-mix(in srgb, var(--accent-text) 45%, transparent); display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
+  .next .when { font-size: 13px; color: var(--muted); }
+  .next .time { grid-column: 1; font-family: var(--serif); font-weight: 300; font-size: 48px; line-height: 1; color: var(--accent-text); margin: 4px 0 10px; }
+  .next h2 { grid-column: 1 / -1; font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.25; }
+  .meta { grid-column: 1 / -1; margin-top: 6px; display: flex; gap: 14px; align-items: center; font-size: 13px; color: var(--muted); }
+  .flag { display: inline-flex; align-items: center; gap: 5px; color: var(--danger); }
+  .next .check { grid-row: 1 / span 2; grid-column: 2; align-self: start; }
+  .list { flex: 1; min-height: 0; overflow: hidden; padding: 18px 24px 120px; }
+  .list h3 { font-family: var(--serif); font-weight: 400; font-size: 18px; margin-bottom: 4px; }
+  ul { list-style: none; padding: 0; }
+  li { display: flex; align-items: center; gap: 14px; min-height: 58px; border-bottom: 1px solid var(--hair); }
+  li:last-child { border-bottom: 0; }
+  li .body { flex: 1; min-width: 0; }
+  li .title { font-size: 16px; font-weight: 500; }
+  li .sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  li time { font-size: 14px; color: var(--muted); }
+  .done .title { color: var(--muted); text-decoration: line-through; }
+  .check { flex: none; width: 44px; height: 44px; margin: -8px; display: grid; place-items: center; background: none; border: 0; cursor: pointer; border-radius: 50%; }
+  .check span { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--accent); color: var(--on); display: grid; place-items: center; transition: background 120ms; }
+  .check svg { opacity: 0; transition: opacity 120ms; }
+  .check[aria-checked="true"] span { background: var(--accent); }
+  .check[aria-checked="true"] svg { opacity: 1; }
+  .dock { position: absolute; left: 14px; right: 14px; bottom: 14px; height: 68px; border-radius: 24px; padding: 0 8px; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .dock a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 500; }
+  .dock a[aria-current="page"] { color: var(--accent-text); }
+  .add { position: absolute; right: 24px; bottom: 98px; width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer; display: grid; place-items: center; background: var(--accent); color: var(--on); box-shadow: 0 10px 24px var(--shade), 0 0 0 6px color-mix(in srgb, var(--accent) 14%, transparent); }
+  :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="pair" id="pair"></div>
+
+<template id="screen">
+  <figure>
+    <main class="phone">
+      <div class="screen">
+        <div class="status" aria-hidden="true"><span>9:41</span><span>100%</span></div>
+        <header>
+          <div><h1>Friday</h1><p class="date">30 October</p></div>
+          <div class="avatar" role="img" aria-label="Your account">CJ</div>
+        </header>
+        <div class="progress">
+          <p class="count">3 of 7 done</p>
+          <div class="track" role="progressbar" aria-valuemin="0" aria-valuemax="7" aria-valuenow="3"><div class="fill"></div></div>
+        </div>
+        <section class="next glass" aria-label="Next up">
+          <p class="when">Next up</p>
+          <button class="check" role="checkbox" aria-checked="false" aria-label="Mark done: Send the signed lease to Dana"><span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5l2.8 2.8L11 4.5"/></svg></span></button>
+          <p class="time">11:30</p>
+          <h2>Send the signed lease to Dana</h2>
+          <p class="meta"><span class="flag"><svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 1.5v13h1.5V9.5h8l-1.8-3.2 1.8-3.3h-8V1.5z"/></svg>P1</span><span>Home</span></p>
+        </section>
+        <div class="list">
+          <h3>Later today</h3>
+          <ul>
+            <li><button class="check" role="checkbox" aria-checked="false" aria-label="Mark done: Finish the quarterly budget"><span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5l2.8 2.8L11 4.5"/></svg></span></button><div class="body"><p class="title">Finish the quarterly budget</p><p class="sub">Work, 2 subtasks</p></div><time>14:00</time></li>
+            <li><button class="check" role="checkbox" aria-checked="false" aria-label="Mark done: Call the dentist"><span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5l2.8 2.8L11 4.5"/></svg></span></button><div class="body"><p class="title">Call the dentist</p><p class="sub">Health</p></div><time>16:30</time></li>
+            <li><button class="check" role="checkbox" aria-checked="false" aria-label="Mark done: Pick up the dry cleaning"><span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5l2.8 2.8L11 4.5"/></svg></span></button><div class="body"><p class="title">Pick up the dry cleaning</p><p class="sub">Errands</p></div><time>18:00</time></li>
+          </ul>
+        </div>
+        <button class="add" aria-label="Add task"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M11 4v14M4 11h14"/></svg></button>
+        <nav class="dock glass" aria-label="Main">
+          <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 13l2.5-7h11L20 13v5H4z"/><path d="M4 13h4.5l1 2h5l1-2H20"/></svg>Inbox</a>
+          <a href="#" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Today</a>
+          <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg>Upcoming</a>
+          <a href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8a2 2 0 012-2h4l2 2h6a2 2 0 012 2v7a2 2 0 01-2 2H6a2 2 0 01-2-2z"/></svg>Projects</a>
+        </nav>
+      </div>
+    </main>
+    <figcaption></figcaption>
+  </figure>
+</template>
+
+<script>
+  const TOTAL = 7;
+  const tpl = document.getElementById("screen");
+  [["l", "Light, Alabaster"], ["d", "Dark, Obsidian"]].forEach(([mode, caption]) => {
+    const node = tpl.content.cloneNode(true);
+    const phone = node.querySelector(".phone");
+    phone.classList.add(mode);
+    node.querySelector("figcaption").textContent = caption;
+    const boxes = [...node.querySelectorAll(".check")];
+    const label = node.querySelector(".count"), fill = node.querySelector(".fill"), bar = node.querySelector("[role=progressbar]");
+    function render() {
+      const done = 3 + boxes.filter(b => b.getAttribute("aria-checked") === "true").length;
+      label.textContent = done + " of " + TOTAL + " done";
+      fill.style.width = (done / TOTAL * 100) + "%";
+      bar.setAttribute("aria-valuenow", done);
+    }
+    boxes.forEach(b => b.addEventListener("click", () => {
+      const on = b.getAttribute("aria-checked") !== "true";
+      b.setAttribute("aria-checked", on);
+      b.closest("li")?.classList.toggle("done", on);
+      render();
+    }));
+    render();
+    document.getElementById("pair").append(node);
+  });
+</script>
+</body>
+</html>
