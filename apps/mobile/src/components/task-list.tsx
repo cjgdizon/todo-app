@@ -1,11 +1,12 @@
 import type { TaskNode } from "@todo/core";
-import { selectView, useData, useLabels, useProjects, useTasks, type Task, type View as ViewKind } from "@todo/data";
+import { selectView, todayProgress, useData, useLabels, useProjects, useTasks, type Task, type View as ViewKind } from "@todo/data";
 import { useMemo } from "react";
 import { ActivityIndicator, Pressable, SectionList, StyleSheet, Text, View } from "react-native";
-import { space, TOUCH, useTheme } from "@/lib/theme";
+import { fonts, space, TOUCH, useTheme } from "@/lib/theme";
 import { QuickAdd, type QuickAddDefaults } from "./quick-add";
 import { SyncBanner } from "./sync-banner";
 import { TaskRow } from "./task-row";
+import { TodaySummary } from "./today-summary";
 
 interface Item {
   task: Task;
@@ -43,10 +44,17 @@ export function TaskList({ view, defaults, empty }: { view: ViewKind; defaults: 
 
   const now = useMemo(() => new Date(), [tasks.data]);
   const isEmpty = sections.every((section) => section.data.length === 0);
+  const taskList = tasks.data ?? [];
+  const showSummary = view.kind === "today" && !tasks.isPending;
+  // When everything due today is done, the summary says so and the empty message would repeat it.
+  const finishedToday = showSummary && todayProgress(taskList, { now, timeZone }).total > 0;
+  const projectName = (task: Task): string | null =>
+    task.projectId === null ? null : ((projects.data ?? []).find((p) => p.id === task.projectId)?.name ?? null);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.bg }]}>
       <SyncBanner />
+      {showSummary && <TodaySummary tasks={taskList} ctx={{ now, timeZone }} projectName={projectName} />}
       {tasks.isPending ? (
         <View style={styles.center}>
           <ActivityIndicator accessibilityLabel="Loading tasks" />
@@ -62,7 +70,7 @@ export function TaskList({ view, defaults, empty }: { view: ViewKind; defaults: 
         </View>
       ) : isEmpty ? (
         <View style={styles.center}>
-          <Text style={{ color: theme["text-muted"], textAlign: "center" }}>{empty}</Text>
+          {finishedToday ? null : <Text style={{ color: theme["text-muted"], textAlign: "center" }}>{empty}</Text>}
         </View>
       ) : (
         <SectionList
@@ -90,5 +98,5 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: space.lg },
   retry: { minHeight: TOUCH, justifyContent: "center", paddingHorizontal: space.md },
-  header: { fontSize: 14, fontWeight: "600", paddingHorizontal: space.md, paddingVertical: space.sm },
+  header: { fontFamily: fonts.serif, fontSize: 18, lineHeight: 24, paddingHorizontal: space.md, paddingVertical: space.sm },
 });

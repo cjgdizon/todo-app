@@ -10,7 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { priorityColor, space, TOUCH, useTheme } from "@/lib/theme";
+import { fonts, priorityColor, space, TOUCH, useTheme } from "@/lib/theme";
 import { useNotice } from "./notice";
 import { SwipeRow } from "./swipe-row";
 
@@ -107,6 +107,6 @@ const styles = StyleSheet.create({
   check: { width: TOUCH, height: TOUCH, alignItems: "center", justifyContent: "center" },
   box: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
   body: { flex: 1, minHeight: TOUCH, justifyContent: "center", paddingVertical: space.sm },
-  title: { fontSize: 16, lineHeight: 22 },
-  details: { fontSize: 14, lineHeight: 20 },
+  title: { fontFamily: fonts.sansMedium, fontSize: 16, lineHeight: 22 },
+  details: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 },
 });

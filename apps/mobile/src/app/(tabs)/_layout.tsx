@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { useTheme } from "@/lib/theme";
+import { fonts, useTheme } from "@/lib/theme";
 
 export default function TabsLayout() {
   const theme = useTheme();
@@ -10,13 +10,24 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: theme.bg },
         headerTintColor: theme.text,
         sceneStyle: { backgroundColor: theme.bg },
-        tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
+        // A rounded dock floating above the screen edge.
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderColor: theme.border,
+          borderWidth: 1,
+          borderTopWidth: 1,
+          borderRadius: 24,
+          height: 68,
+          marginHorizontal: 14,
+          marginBottom: 14,
+          paddingBottom: 0,
+        },
         tabBarActiveTintColor: theme["accent-strong"],
         tabBarInactiveTintColor: theme["text-muted"],
         // Labels only: the five destinations are few and the words are clearer than icons.
         tabBarIcon: () => null,
         tabBarIconStyle: { display: "none" },
-        tabBarLabelStyle: { fontSize: 14, fontWeight: "600" },
+        tabBarLabelStyle: { fontFamily: fonts.sansMedium, fontSize: 13 },
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Inbox" }} />

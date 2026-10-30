@@ -14,7 +14,16 @@ export function priorityColor(theme: Record<ColorName, string>, priority: number
   return null;
 }
 
-export const space = { xs: 4, sm: 8, md: 16, lg: 24 } as const;
+/** Font families registered with `useFonts` in the root layout (Fraunces for headings, Hanken Grotesk for the rest). */
+export const fonts = {
+  serifLight: "Fraunces_300Light",
+  serif: "Fraunces_400Regular",
+  sans: "HankenGrotesk_400Regular",
+  sansMedium: "HankenGrotesk_500Medium",
+  sansSemibold: "HankenGrotesk_600SemiBold",
+} as const;
+
+export const space ={ xs: 4, sm: 8, md: 16, lg: 24 } as const;
 export const radius = { sm: 6, md: 10, lg: 16 } as const;
 /** Minimum touch target (iOS 44pt, Android 48dp). */
 export const TOUCH = 48;
