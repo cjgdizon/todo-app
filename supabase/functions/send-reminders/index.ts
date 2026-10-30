@@ -71,12 +71,17 @@ Deno.serve(async (request) => {
     return json(500, { error: "could not read reminders" });
   }
   const due = ((data ?? []) as ClaimedRow[]).map(toDueReminder);
-  const messages = buildReminderMessages(due);
+  // Each message remembers its reminder, so a batch that fails in transit can be put back.
+  const outgoing = due.flatMap((reminder) =>
+    buildReminderMessages([reminder]).map((message) => ({ reminderId: reminder.reminderId, message })),
+  );
 
   const accessToken = Deno.env.get("EXPO_ACCESS_TOKEN");
   const totals = { sent: 0, failed: 0 };
   const deadTokens: string[] = [];
-  for (const batch of chunk(messages, PUSH_BATCH_SIZE)) {
+  const retryIds = new Set<string>();
+  for (const batch of chunk(outgoing, PUSH_BATCH_SIZE)) {
+    const messages = batch.map((item) => item.message);
     try {
       const response = await fetch(EXPO_PUSH_URL, {
         method: "POST",
@@ -85,17 +90,27 @@ Deno.serve(async (request) => {
           Accept: "application/json",
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify(batch),
+        body: JSON.stringify(messages),
         signal: AbortSignal.timeout(EXPO_TIMEOUT_MS),
       });
-      const result = readPushTickets(batch, await response.json().catch(() => null));
+      // The push service being down or busy is worth another try next minute; a 4xx would fail the same way again.
+      if (response.status >= 500 || response.status === 429) {
+        for (const item of batch) retryIds.add(item.reminderId);
+      }
+      const result = readPushTickets(messages, await response.json().catch(() => null));
       totals.sent += result.sent;
       totals.failed += result.failed;
       deadTokens.push(...result.deadTokens);
     } catch (caught) {
       console.error("send-reminders: push request failed", caught instanceof Error ? caught.name : "unknown");
       totals.failed += batch.length;
+      for (const item of batch) retryIds.add(item.reminderId);
     }
+  }
+
+  if (retryIds.size > 0) {
+    const { error: putBackError } = await db.rpc("unclaim_reminders", { p_ids: [...retryIds] });
+    if (putBackError) console.error("send-reminders: putting reminders back failed", putBackError.code);
   }
 
   if (deadTokens.length > 0) {
