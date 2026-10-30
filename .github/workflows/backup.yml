@@ -1,0 +1,47 @@
+name: Backup
+
+# A weekly dump of the hosted database, kept as a build artifact for 30 days. The repository is
+# private; keep it that way, because the dump holds everyone's tasks and the accounts' emails and password hashes.
+# Not covered: files in Storage (attachments), and anything stored in Vault.
+# Needs the repository secret SUPABASE_ACCESS_TOKEN (a Supabase personal access token).
+
+on:
+  schedule:
+    - cron: "17 3 * * 0" # Sundays, 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: yjrcakvhwhytlskzpryk
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Link to the hosted project
+        run: npx --yes supabase@2.121.0 link --project-ref "$PROJECT_REF"
+
+      - name: Dump schema and data
+        run: |
+          mkdir backup
+          npx --yes supabase@2.121.0 db dump --linked --schema public -f backup/schema.sql
+          # From auth only users and identities are kept: sessions, refresh tokens and one-time tokens
+          # would be live logins in a file, and nothing needs them after a restore (people sign in again).
+          EXCLUDE="auth.audit_log_entries,auth.custom_oauth_providers,auth.flow_state,auth.instances,auth.oauth_client_states,auth.oauth_authorizations,auth.oauth_clients,auth.oauth_consents,auth.sessions,auth.refresh_tokens,auth.mfa_amr_claims,auth.mfa_factors,auth.mfa_challenges,auth.mfa_recovery_code_sets,auth.mfa_recovery_codes,auth.one_time_tokens,auth.sso_providers,auth.sso_domains,auth.saml_providers,auth.saml_relay_states,auth.scim_tokens,auth.scim_users,auth.webauthn_challenges,auth.webauthn_credentials"
+          npx --yes supabase@2.121.0 db dump --linked --schema public,auth --data-only --use-copy -x "$EXCLUDE" -f backup/data.sql
+          # A dump that is empty or missing the tables would pass silently; stop the job instead.
+          grep -q "CREATE TABLE" backup/schema.sql
+          grep -q "COPY \"public\".\"tasks\"" backup/data.sql
+          if grep -q "COPY \"auth\".\"sessions\"" backup/data.sql; then echo "sessions leaked into the dump"; exit 1; fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todo-db-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error
