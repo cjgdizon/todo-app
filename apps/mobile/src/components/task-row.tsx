@@ -10,6 +10,7 @@ import {
 import { useRouter } from "expo-router";
 import { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { completionTap } from "@/lib/haptics";
 import { fonts, priorityColor, space, TOUCH, useTheme } from "@/lib/theme";
 import { useNotice } from "./notice";
 import { SwipeRow } from "./swipe-row";
@@ -31,6 +32,7 @@ export const TaskRow = memo(function TaskRow({ task, depth, ctx }: TaskRowProps)
   const { notify } = useNotice();
 
   async function complete() {
+    completionTap();
     try {
       const result = await completeTask(task);
       notify(result.kind === "advance" ? "Moved to the next date." : "Task completed.", {

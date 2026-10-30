@@ -1,6 +1,7 @@
 import { instantToLocal, type ViewContext } from "@todo/core";
 import { nextUpTask, todayProgress, useCompleteTask, type Task } from "@todo/data";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { completionTap } from "@/lib/haptics";
 import { fonts, space, TOUCH, useTheme } from "@/lib/theme";
 import { useNotice } from "./notice";
 
@@ -24,6 +25,7 @@ export function TodaySummary({
   const finished = done === total;
 
   async function complete(task: Task) {
+    completionTap();
     try {
       const result = await completeTask(task);
       notify(result.kind === "advance" ? "Moved to the next date." : "Task completed.", {
