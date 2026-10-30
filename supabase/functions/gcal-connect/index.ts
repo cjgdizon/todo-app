@@ -9,7 +9,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { signOAuthState, verifyOAuthState } from "@todo/core/oauth-state";
 import { corsFor, jsonResponse, signedInUser } from "../_shared/auth.ts";
-import { consentUrl, createTasksCalendar, exchangeCode } from "../_shared/google.ts";
+import { consentUrl, createTasksCalendar, exchangeCode, GoogleError } from "../_shared/google.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -82,7 +82,7 @@ Deno.serve(async (request) => {
       if (error) throw new Error(`save failed (${error.code})`);
       return redirect(settingsUrl(returnUrl, "connected"));
     } catch (caught) {
-      console.error("gcal-connect: connecting failed", caught instanceof Error ? caught.name : "unknown");
+      console.error("gcal-connect: connecting failed", caught instanceof GoogleError ? caught.message : caught instanceof Error ? caught.name : "unknown");
       return redirect(settingsUrl(returnUrl, "failed"));
     }
   }
