@@ -63,6 +63,26 @@ Nothing below is done by code in this repository; each step needs your own accou
 5. **Mobile.** Builds go through `apps/mobile/eas.json`; push notifications need an EAS project id (`eas init`) and a development build. App ids are `com.cjgdizon.todo` and cannot change once published.
 6. **Backups and error tracking.** Turn on database backups for the hosted project; error tracking (such as Sentry) is not set up yet.
 
+## Backups
+
+`.github/workflows/backup.yml` dumps the hosted database every Sunday (and on demand from the Actions tab) with `scripts/backup-dump.sh`, and keeps `schema.sql` and `data.sql` as an artifact for 30 days. The repository must stay private: the dump holds everyone's tasks and the accounts' emails and password hashes. Files in Storage and secrets in Vault are not included.
+
+It connects as a read-only database login, `backup_reader`, whose connection string is the repository secret `BACKUP_DB_URL` (use the session pooler address; GitHub's runners cannot reach the direct one). Create the login in the SQL editor, with a long random password of letters and digits:
+
+```sql
+create role backup_reader login password '...' bypassrls;
+grant usage on schema public to backup_reader;
+grant select on all tables in schema public to backup_reader;
+grant select on all sequences in schema public to backup_reader;
+grant select on auth.users, auth.identities to backup_reader;
+alter default privileges in schema public grant select on tables to backup_reader;
+grant anon to backup_reader;
+```
+
+Why two lines are unusual: `bypassrls` lets `pg_dump` read tables that have row-level security (otherwise it fails or dumps nothing), and `grant anon` is how the login gets permission to enter the `auth` schema, because only `supabase_admin` can grant that directly. `anon` has no table privileges here, so the login stays read-only.
+
+To restore: apply the migrations to a new Supabase project, then load `data.sql` (it turns constraint checks off while loading). People sign in again, because sessions are not backed up. Reconnect Google Calendar afterwards.
+
 ## Not built yet
 
 Webhooks from Google Calendar (changes are polled each minute), importing events made in Google, mobile attachments, mobile live updates. Unverified: the mobile app on a real device, and Google sync with a real account.
