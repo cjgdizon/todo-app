@@ -66,10 +66,21 @@ export function nextUpTask(tasks: readonly Task[], ctx: ViewContext): Task | nul
   return timed.find((t) => (t.dueAt?.getTime() ?? 0) >= ctx.now.getTime()) ?? timed[0] ?? null;
 }
 
-/** Done today against everything that was due today or overdue (done or not). */
+/**
+ * Done today against everything that was due today or overdue (done or not). A task
+ * finished today counts only if it was due today or earlier, so ticking off an
+ * undated Inbox task does not turn into "1 of 1 done" on Today.
+ */
 export function todayProgress(tasks: readonly Task[], ctx: ViewContext): { done: number; total: number } {
   const isToday = localDayCheck(ctx);
-  const done = tasks.filter((t) => t.completedAt !== null && isToday(t.completedAt)).length;
+  const today = instantToLocal(ctx.now, ctx.timeZone).date;
+  const done = tasks.filter(
+    (t) =>
+      t.completedAt !== null &&
+      isToday(t.completedAt) &&
+      t.dueAt !== null &&
+      instantToLocal(t.dueAt, ctx.timeZone).date <= today,
+  ).length;
   const open = tasks.filter((t) => t.completedAt === null && ["today", "overdue"].includes(dueBucket(t, ctx))).length;
   return { done, total: done + open };
 }

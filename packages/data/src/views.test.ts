@@ -207,3 +207,24 @@ describe("todayProgress", () => {
     expect(todayProgress([task({ title: "no date" })], ctx)).toEqual({ done: 0, total: 0 });
   });
 });
+
+describe("todayProgress ignores finished tasks that were never due today", () => {
+  it("does not count an undated task or one due next week, even if finished today", () => {
+    const progress = todayProgress(
+      [
+        task({ title: "inbox", completedAt: new Date("2026-10-20T08:00:00Z") }),
+        task({ title: "next week", dueAt: new Date("2026-10-27T02:00:00Z"), completedAt: new Date("2026-10-20T08:00:00Z") }),
+      ],
+      ctx,
+    );
+    expect(progress).toEqual({ done: 0, total: 0 });
+  });
+
+  it("counts a task due earlier that was finished today", () => {
+    const progress = todayProgress(
+      [task({ title: "late", dueAt: new Date("2026-10-18T06:00:00Z"), completedAt: new Date("2026-10-20T08:00:00Z") })],
+      ctx,
+    );
+    expect(progress).toEqual({ done: 1, total: 1 });
+  });
+});
