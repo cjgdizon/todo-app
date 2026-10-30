@@ -475,20 +475,6 @@ export async function insertLabel(
   check(error);
 }
 
-export async function updateLabel(
-  client: TodoClient,
-  id: string,
-  patch: { name?: string; color?: string | null; deletedAt?: Date | null },
-): Promise<void> {
-  const update: Database["public"]["Tables"]["labels"]["Update"] = {};
-  if (patch.name !== undefined) update.name = patch.name;
-  if (patch.color !== undefined) update.color = patch.color;
-  if (patch.deletedAt !== undefined) update.deleted_at = iso(patch.deletedAt);
-  if (Object.keys(update).length === 0) return;
-  const { error } = await client.from("labels").update(update).eq("id", id);
-  check(error);
-}
-
 /** Every workspace the user belongs to, oldest first, with their role in each. */
 export async function fetchMemberships(client: TodoClient, userId: string): Promise<Membership[]> {
   const { data, error } = await client
