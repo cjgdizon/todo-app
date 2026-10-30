@@ -4,6 +4,7 @@ import {
   dueBucket,
   FilterParseError,
   groupUpcoming,
+  instantToLocal,
   matchesFilter,
   parseFilter,
   type TaskNode,
@@ -44,6 +45,33 @@ function byUrgency(a: Task, b: Task): number {
   if (diff !== 0) return diff;
   if (a.priority !== b.priority) return a.priority - b.priority;
   return compareTasks(a, b);
+}
+
+/** Whether an instant falls on the viewer's current calendar day. */
+function localDayCheck(ctx: ViewContext): (instant: Date) => boolean {
+  const today = instantToLocal(ctx.now, ctx.timeZone).date;
+  return (instant) => instantToLocal(instant, ctx.timeZone).date === today;
+}
+
+/**
+ * The task the Today screen puts in the spotlight: the earliest open timed task
+ * due today that is still ahead, else the earliest timed one already past.
+ * All-day tasks have no time to show, so they never qualify.
+ */
+export function nextUpTask(tasks: readonly Task[], ctx: ViewContext): Task | null {
+  const isToday = localDayCheck(ctx);
+  const timed = tasks
+    .filter((t) => t.completedAt === null && t.dueAt !== null && !t.dueAllDay && isToday(t.dueAt))
+    .sort(byUrgency);
+  return timed.find((t) => (t.dueAt?.getTime() ?? 0) >= ctx.now.getTime()) ?? timed[0] ?? null;
+}
+
+/** Done today against everything that was due today or overdue (done or not). */
+export function todayProgress(tasks: readonly Task[], ctx: ViewContext): { done: number; total: number } {
+  const isToday = localDayCheck(ctx);
+  const done = tasks.filter((t) => t.completedAt !== null && isToday(t.completedAt)).length;
+  const open = tasks.filter((t) => t.completedAt === null && ["today", "overdue"].includes(dueBucket(t, ctx))).length;
+  return { done, total: done + open };
 }
 
 /**
