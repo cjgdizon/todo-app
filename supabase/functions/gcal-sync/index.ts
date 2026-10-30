@@ -49,18 +49,11 @@ async function syncPerson(db: Db, person: Integration): Promise<{ sent: number; 
   const calendar = calendarPort(accessToken, person.calendar_id);
   const store = taskStore(db, person.user_id, person.workspace_id);
 
-  // Take the waiting tasks off the queue first; any that fail go back, so none is lost and a
-  // change made meanwhile is queued again by the database.
-  const { data: waiting } = await db
-    .from("calendar_sync_queue")
-    .select("id,task_id")
-    .eq("user_id", person.user_id)
-    .order("id")
-    .limit(TASKS_PER_PERSON);
-  const rows = waiting ?? [];
-  if (rows.length > 0) {
-    await db.from("calendar_sync_queue").delete().in("id", rows.map((row) => row.id));
-  }
+  // Take the waiting tasks off the queue first (in one statement, so an overlapping run cannot
+  // take the same ones); any that fail go back, so none is lost and a change made meanwhile is
+  // queued again by the database.
+  const { data: waiting } = await db.rpc("claim_calendar_sync_queue", { p_user: person.user_id, batch: TASKS_PER_PERSON });
+  const rows = (waiting ?? []) as { task_id: string }[];
   let sent = 0;
   for (const row of rows) {
     try {
