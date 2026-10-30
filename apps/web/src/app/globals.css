@@ -60,6 +60,21 @@ h3 {
   font-weight: 400;
 }
 
+/* Frosted glass: only for layers that float above content (Next up card, dock, sheets). */
+.glass {
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  box-shadow: var(--shadow-popover);
+}
+
+@supports (backdrop-filter: blur(1px)) {
+  .glass {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    backdrop-filter: blur(22px) saturate(140%);
+  }
+}
+
 /* Visible keyboard focus on every interactive element (DESIGN.md: 2px, 2px offset). */
 :focus-visible {
   outline: 2px solid var(--focus-ring);

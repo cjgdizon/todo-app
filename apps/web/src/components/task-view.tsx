@@ -33,6 +33,7 @@ import { selectView, type View } from "@todo/data";
 import { BulkBar } from "./bulk-bar";
 import { QuickAdd, type QuickAddDefaults } from "./quick-add";
 import { TaskRow } from "./task-row";
+import { TodaySummary } from "./today-summary";
 import { useToast } from "./toast";
 
 /** Re-renders every minute so "overdue" flips without a reload. */
@@ -290,6 +291,10 @@ export function TaskView({ view, title, actions }: TaskViewProps) {
           {actions}
         </div>
       </div>
+
+      {view.kind === "today" && !loading && (
+        <TodaySummary tasks={tasks} ctx={ctx} projectName={projectName} onComplete={(t) => void onToggle(t)} />
+      )}
 
       {view.kind === "search" ? <SearchBox query={view.query} /> : <QuickAdd defaults={defaults} />}
 
