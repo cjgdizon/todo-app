@@ -1,5 +1,5 @@
 import type { PGlite } from "@electric-sql/pglite";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { addMember, addTask, asService, asUser, createDb, personalWorkspace, signUp, uniqueEmail as email } from "./db";
 
 let db: PGlite;
@@ -65,11 +65,11 @@ describe("claim_calendar_sync_queue", () => {
   });
 });
 
-describe("scheduled purge of deleted rows", () => {
-  /** A task with one attachment file, in a fresh workspace. */
-  async function taskWithFile(name: string) {
-    const owner = await signUp(db, email(name));
-    const ws = await personalWorkspace(db, owner);
+describe("purging deleted rows", () => {
+  /** A task with one attachment file, in the owner's workspace (a fresh one unless given). */
+  async function taskWithFile(name: string, existing?: { owner: string; ws: string }) {
+    const owner = existing?.owner ?? (await signUp(db, email(name)));
+    const ws = existing?.ws ?? (await personalWorkspace(db, owner));
     const task = await addTask(db, owner, ws, name);
     const path = `${task}/${name}.txt`;
     await db.query(
@@ -79,41 +79,92 @@ describe("scheduled purge of deleted rows", () => {
     );
     return { owner, ws, task, path };
   }
-  const expiredPaths = () =>
-    asService(db, () => db.query<{ p: string }>("select public.expired_attachment_paths() as p")).then((r) => r.rows.map((row) => row.p));
-
-  it("lists the files of attachments and tasks that were deleted long enough ago, and nothing else", async () => {
-    const live = await taskWithFile("live-file");
-    const oldAttachment = await taskWithFile("old-attachment");
-    const oldTask = await taskWithFile("old-task");
-    const recent = await taskWithFile("recent-delete");
-    await db.query("update public.attachments set deleted_at = now() - interval '40 days' where storage_path = $1", [oldAttachment.path]);
-    await db.query("update public.tasks set deleted_at = now() - interval '40 days' where id = $1", [oldTask.task]);
-    await db.query("update public.tasks set deleted_at = now() - interval '2 days' where id = $1", [recent.task]);
-
-    const paths = await expiredPaths();
-
-    expect(paths).toContain(oldAttachment.path);
-    expect(paths).toContain(oldTask.path);
-    expect(paths).not.toContain(live.path);
-    expect(paths).not.toContain(recent.path);
+  beforeEach(async () => {
+    await db.query("delete from public.storage_cleanup");
   });
+  const longAgo = "now() - interval '40 days'";
+  const purge = () => asService(db, () => db.query<{ n: string }>("select public.purge_deleted_rows() as n"));
+  const queued = async () =>
+    (await db.query<{ path: string }>("select path from public.storage_cleanup")).rows.map((row) => row.path);
 
   it("purges the old tombstones and keeps live rows", async () => {
     const live = await taskWithFile("keep-me");
     const gone = await taskWithFile("purge-me");
-    await db.query("update public.tasks set deleted_at = now() - interval '40 days' where id = $1", [gone.task]);
+    await db.query(`update public.tasks set deleted_at = ${longAgo} where id = $1`, [gone.task]);
 
-    const purged = await asService(db, () => db.query<{ n: string }>("select public.purge_deleted_rows() as n"));
+    const purged = await purge();
 
     expect(Number(purged.rows[0]?.n)).toBeGreaterThanOrEqual(1);
     expect(await count("select 1 from public.tasks where id = $1", [gone.task])).toBe(0);
     expect(await count("select 1 from public.tasks where id = $1", [live.task])).toBe(1);
   });
 
+  it("queues the file of every attachment row the purge drops, including rows removed by a cascade", async () => {
+    const live = await taskWithFile("live-file");
+    const oldTask = await taskWithFile("old-task");
+    const oldAttachment = await taskWithFile("old-attachment");
+    // A live task inside a project that was deleted long ago: the purge removes it with the project.
+    const inProject = await taskWithFile("in-old-project");
+    const project = (
+      await db.query<{ id: string }>(
+        "insert into public.projects (workspace_id, name, position) values ($1, 'Old', 'a0') returning id",
+        [inProject.ws],
+      )
+    ).rows[0]!.id;
+    await db.query("update public.tasks set project_id = $1 where id = $2", [project, inProject.task]);
+    await db.query(`update public.projects set deleted_at = ${longAgo} where id = $1`, [project]);
+    await db.query(`update public.tasks set deleted_at = ${longAgo} where id = $1`, [oldTask.task]);
+    await db.query(`update public.attachments set deleted_at = ${longAgo} where storage_path = $1`, [oldAttachment.path]);
+
+    await purge();
+
+    const paths = await queued();
+    expect(paths).toContain(oldTask.path);
+    expect(paths).toContain(oldAttachment.path);
+    expect(paths).toContain(inProject.path);
+    expect(paths).not.toContain(live.path);
+  });
+
+  it("does not queue a file that a row that stays still points at", async () => {
+    const shared = await taskWithFile("shared-path");
+    await db.query(`update public.attachments set deleted_at = ${longAgo} where storage_path = $1`, [shared.path]);
+    // Someone else in the workspace added a second, live row for the same file.
+    await db.query(
+      `insert into public.attachments (workspace_id, task_id, created_by, storage_path, file_name, size_bytes)
+       values ($1, $2, $3, $4, 'same.txt', 1)`,
+      [shared.ws, shared.task, shared.owner, shared.path],
+    );
+
+    await purge();
+
+    expect(await queued()).not.toContain(shared.path);
+    expect(await count("select 1 from public.attachments where storage_path = $1", [shared.path])).toBe(1);
+  });
+
+  it("hands queued files out in batches and forgets the ones reported as removed", async () => {
+    const paths = ["a/1.txt", "a/2.txt", "a/3.txt"];
+    for (const path of paths) await db.query("insert into public.storage_cleanup (path) values ($1) on conflict do nothing", [path]);
+    const next = (batch: number) =>
+      asService(db, () => db.query<{ p: string }>("select public.next_storage_cleanup($1) as p", [batch])).then((r) => r.rows.map((row) => row.p));
+
+    const firstTwo = (await next(2)).filter((p) => paths.includes(p));
+    expect(firstTwo).toHaveLength(2);
+    await asService(db, () => db.query("select public.finish_storage_cleanup($1::text[])", [firstTwo]));
+
+    const left = (await next(10)).filter((p) => paths.includes(p));
+    expect(left).toHaveLength(1);
+    expect(firstTwo).not.toContain(left[0]);
+  });
+
   it("is for the server only", async () => {
     const person = await signUp(db, email("purge-user"));
-    await expect(asUser(db, person, () => db.query("select public.purge_deleted_rows()"))).rejects.toThrow(/permission denied/);
-    await expect(asUser(db, person, () => db.query("select public.expired_attachment_paths()"))).rejects.toThrow(/permission denied/);
+    for (const sql of [
+      "select public.purge_deleted_rows()",
+      "select public.next_storage_cleanup(10)",
+      "select public.finish_storage_cleanup(array['x'])",
+      "select * from public.storage_cleanup",
+    ]) {
+      await expect(asUser(db, person, () => db.query(sql))).rejects.toThrow(/permission denied/);
+    }
   });
 });

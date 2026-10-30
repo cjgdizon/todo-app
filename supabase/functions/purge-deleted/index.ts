@@ -1,13 +1,17 @@
 // Nightly cleanup of what people deleted. The database's cron job calls this with a shared secret (no
-// user is signed in, so `verify_jwt = false` in config.toml). Order matters: the files of attachments
-// that are about to lose their rows are removed from Storage first, and the rows are purged only if
-// every file went. A failed run changes nothing for good and simply runs again the next night.
+// user is signed in, so `verify_jwt = false` in config.toml). Two steps:
+//   1. purge the rows deleted more than 30 days ago; the database notes the file of every attachment
+//      row it removes in `storage_cleanup`, in the same transaction;
+//   2. remove those files from Storage, a batch at a time, forgetting a file only once it is gone.
+// A night that fails part-way changes nothing for good: the rest stays queued for the next run.
 // Nothing sensitive is logged: counts and error names only, never file names.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { sameSecret } from "../_shared/secret.ts";
 
 const BUCKET = "attachments";
-const REMOVE_BATCH = 100;
+const BATCH = 100;
+// At most this many batches per run, so a run stays well inside the function's time limit.
+const MAX_BATCHES = 50;
 
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -32,28 +36,34 @@ Deno.serve(async (request) => {
   }
   const db = createClient(url, serviceKey, { auth: { persistSession: false } });
 
-  const { data, error } = await db.rpc("expired_attachment_paths");
-  if (error) {
-    console.error("purge-deleted: listing files failed", error.code);
-    return json(500, { error: "could not list files" });
-  }
-  const files = Array.isArray(data) ? (data as string[]) : [];
-
-  let filesRemoved = 0;
-  for (let start = 0; start < files.length; start += REMOVE_BATCH) {
-    const { data: removed, error: removeError } = await db.storage.from(BUCKET).remove(files.slice(start, start + REMOVE_BATCH));
-    if (removeError) {
-      // Keep the rows (and so the file names) until the files are really gone.
-      console.error("purge-deleted: removing files failed", removeError.name);
-      return json(502, { error: "could not remove files", filesRemoved, filesListed: files.length });
-    }
-    filesRemoved += removed?.length ?? 0;
-  }
-
   const { data: purged, error: purgeError } = await db.rpc("purge_deleted_rows");
   if (purgeError) {
     console.error("purge-deleted: purging rows failed", purgeError.code);
     return json(500, { error: "could not purge rows" });
   }
-  return json(200, { filesListed: files.length, filesRemoved, rowsPurged: Number(purged ?? 0) });
+
+  let filesRemoved = 0;
+  for (let batch = 0; batch < MAX_BATCHES; batch++) {
+    const { data, error } = await db.rpc("next_storage_cleanup", { batch: BATCH });
+    if (error) {
+      console.error("purge-deleted: reading the file queue failed", error.code);
+      return json(500, { error: "could not read the file queue", rowsPurged: Number(purged ?? 0), filesRemoved });
+    }
+    const paths = Array.isArray(data) ? (data as string[]) : [];
+    if (paths.length === 0) break;
+
+    const { error: removeError } = await db.storage.from(BUCKET).remove(paths);
+    if (removeError) {
+      // Leave them queued; the next night tries again.
+      console.error("purge-deleted: removing files failed", removeError.name);
+      return json(502, { error: "could not remove files", rowsPurged: Number(purged ?? 0), filesRemoved });
+    }
+    const { error: forgetError } = await db.rpc("finish_storage_cleanup", { p_paths: paths });
+    if (forgetError) {
+      console.error("purge-deleted: forgetting removed files failed", forgetError.code);
+      return json(500, { error: "could not update the file queue", rowsPurged: Number(purged ?? 0), filesRemoved });
+    }
+    filesRemoved += paths.length;
+  }
+  return json(200, { rowsPurged: Number(purged ?? 0), filesRemoved });
 });
