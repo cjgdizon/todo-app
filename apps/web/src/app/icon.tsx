@@ -18,12 +18,12 @@ export default async function Icon({ id }: { id: Promise<string> }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#3f7d6b",
+          background: "#0c0d0f",
           borderRadius: size * 0.22,
         }}
       >
         <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
-          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M5 12.5l4.5 4.5L19 7.5" stroke="#b9c0cc" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
     ),
