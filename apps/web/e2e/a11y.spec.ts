@@ -70,6 +70,22 @@ for (const scheme of ["light", "dark"] as const) {
       expect(await violations(page), "join page").toEqual([]);
     });
 
+    test("the stats page has no accessibility violations", async ({ page }) => {
+      await signUp(page);
+      await page.getByRole("link", { name: "Stats" }).click();
+      await expect(page.getByRole("heading", { name: "Stats", level: 1 })).toBeVisible();
+      expect(await violations(page), "stats").toEqual([]);
+    });
+
+    test("the inbox and task drawer have no violations at phone width", async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 812 });
+      await signUp(page);
+      await addTask(page, "Phone task");
+      expect(await violations(page), "inbox at 375px").toEqual([]);
+      await openTask(page, "Phone task");
+      expect(await violations(page), "drawer at 375px").toEqual([]);
+    });
+
     test("the project board has no accessibility violations", async ({ page }) => {
       await signUp(page);
       await createProject(page, "Plan");
