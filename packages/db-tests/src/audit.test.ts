@@ -64,3 +64,56 @@ describe("claim_calendar_sync_queue", () => {
     ).rejects.toThrow(/permission denied/);
   });
 });
+
+describe("scheduled purge of deleted rows", () => {
+  /** A task with one attachment file, in a fresh workspace. */
+  async function taskWithFile(name: string) {
+    const owner = await signUp(db, email(name));
+    const ws = await personalWorkspace(db, owner);
+    const task = await addTask(db, owner, ws, name);
+    const path = `${task}/${name}.txt`;
+    await db.query(
+      `insert into public.attachments (workspace_id, task_id, created_by, storage_path, file_name, size_bytes)
+       values ($1, $2, $3, $4, $5, 1)`,
+      [ws, task, owner, path, `${name}.txt`],
+    );
+    return { owner, ws, task, path };
+  }
+  const expiredPaths = () =>
+    asService(db, () => db.query<{ p: string }>("select public.expired_attachment_paths() as p")).then((r) => r.rows.map((row) => row.p));
+
+  it("lists the files of attachments and tasks that were deleted long enough ago, and nothing else", async () => {
+    const live = await taskWithFile("live-file");
+    const oldAttachment = await taskWithFile("old-attachment");
+    const oldTask = await taskWithFile("old-task");
+    const recent = await taskWithFile("recent-delete");
+    await db.query("update public.attachments set deleted_at = now() - interval '40 days' where storage_path = $1", [oldAttachment.path]);
+    await db.query("update public.tasks set deleted_at = now() - interval '40 days' where id = $1", [oldTask.task]);
+    await db.query("update public.tasks set deleted_at = now() - interval '2 days' where id = $1", [recent.task]);
+
+    const paths = await expiredPaths();
+
+    expect(paths).toContain(oldAttachment.path);
+    expect(paths).toContain(oldTask.path);
+    expect(paths).not.toContain(live.path);
+    expect(paths).not.toContain(recent.path);
+  });
+
+  it("purges the old tombstones and keeps live rows", async () => {
+    const live = await taskWithFile("keep-me");
+    const gone = await taskWithFile("purge-me");
+    await db.query("update public.tasks set deleted_at = now() - interval '40 days' where id = $1", [gone.task]);
+
+    const purged = await asService(db, () => db.query<{ n: string }>("select public.purge_deleted_rows() as n"));
+
+    expect(Number(purged.rows[0]?.n)).toBeGreaterThanOrEqual(1);
+    expect(await count("select 1 from public.tasks where id = $1", [gone.task])).toBe(0);
+    expect(await count("select 1 from public.tasks where id = $1", [live.task])).toBe(1);
+  });
+
+  it("is for the server only", async () => {
+    const person = await signUp(db, email("purge-user"));
+    await expect(asUser(db, person, () => db.query("select public.purge_deleted_rows()"))).rejects.toThrow(/permission denied/);
+    await expect(asUser(db, person, () => db.query("select public.expired_attachment_paths()"))).rejects.toThrow(/permission denied/);
+  });
+});
