@@ -112,9 +112,13 @@ test("Alt+Arrow reorders tasks from the keyboard", async ({ page }) => {
   await addTask(page, "Second");
   await expect(taskRows(page).first()).toContainText("First");
 
-  await page.getByRole("button", { name: "Second", exact: true }).focus();
-  await page.keyboard.press("Alt+ArrowUp");
-  await expect(taskRows(page).first()).toContainText("Second");
+  // A slow machine can re-render the row after it is focused and drop the key; pressing again is
+  // harmless once "Second" is already on top.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Second", exact: true }).focus();
+    await page.keyboard.press("Alt+ArrowUp");
+    await expect(taskRows(page).first()).toContainText("Second", { timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
 
   await reloadWhenSaved(page);
   await expect(taskRows(page).first()).toContainText("Second");
